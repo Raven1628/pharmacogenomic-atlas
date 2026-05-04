@@ -6,3 +6,6 @@ __pycache__/
 nohup.out
 atlas_output.log
 data/raw/
+.env
+auto_update_literature_with_email.py # If it has hardcoded password
+auto_update_literature_github.py

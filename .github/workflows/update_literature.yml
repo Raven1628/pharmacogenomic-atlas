@@ -1,0 +1,56 @@
+name: Weekly Literature Update
+
+on:
+  schedule:
+    # Run every Monday at 9 AM
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check-literature:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install requests pandas
+    
+    - name: Run literature monitor
+      run: |
+        python auto_update_literature.py
+    
+    - name: Check for updates
+      id: check
+      run: |
+        if [ -f "data/processed/literature_updates.csv" ]; then
+          echo "updates_found=true" >> $GITHUB_OUTPUT
+          echo "Updates found! Check the workflow artifacts."
+        else
+          echo "updates_found=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Upload results
+      if: steps.check.outputs.updates_found == 'true'
+      uses: actions/upload-artifact@v3
+      with:
+        name: literature-updates
+        path: data/processed/literature_updates.csv
+    
+    - name: Create issue if updates found
+      if: steps.check.outputs.updates_found == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '📚 New Pharmacogenomic Literature Available',
+            body: 'New articles have been found. Please review and update drug_config.py if needed.\n\nDownload the updates from the workflow artifacts.'
+          })
