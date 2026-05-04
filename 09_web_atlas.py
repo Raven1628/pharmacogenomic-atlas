@@ -1,5 +1,5 @@
-# 09_web_atlas_full.py
-# Complete original Dash app - Render compatible
+# 09_web_atlas.py
+# Complete Pharmacogenomic Equity Atlas with Continuous Sliders
 
 import dash
 from dash import dcc, html, Input, Output
@@ -122,7 +122,7 @@ print("\n[2/4] Creating Dash application...")
 app = dash.Dash(__name__, title="Pharmacogenomic Equity Atlas")
 server = app.server
 
-# Define app layout - FULL ORIGINAL VERSION
+# Define app layout - FULL ORIGINAL VERSION WITH CONTINUOUS SLIDERS
 app.layout = html.Div([
 
     # Header
@@ -172,7 +172,7 @@ app.layout = html.Div([
                     ])
                 ], style={'backgroundColor': '#e8f4f8', 'padding': '20px', 'borderRadius': '10px', 'marginBottom': '20px'}),
                 
-                # Inputs
+                # Inputs - WITH CONTINUOUS SLIDERS
                 html.Div([
                     html.Div([
                         html.Label("Patient Ancestry:", style={'fontWeight': 'bold'}),
@@ -186,36 +186,54 @@ app.layout = html.Div([
                     ], style={'width': '30%', 'display': 'inline-block', 'padding': '10px'}),
                     
                     html.Div([
-                        html.Label("SES Vulnerability Score (0-1):", style={'fontWeight': 'bold'}),
+                        html.Label("SES Vulnerability Score:", style={'fontWeight': 'bold', 'fontSize': '16px'}),
                         html.Div([
-                            html.Span("🟢 Low", style={'color': '#27ae60', 'marginRight': '20px'}),
-                            html.Span("🟡 Medium", style={'color': '#f39c12', 'marginRight': '20px'}),
-                            html.Span("🟠 High", style={'color': '#e67e22', 'marginRight': '20px'}),
-                            html.Span("🔴 Very High", style={'color': '#e74c3c'})
-                        ]),
+                            html.Span("🟢 Low", style={'color': '#27ae60', 'fontSize': '12px', 'marginRight': '20px'}),
+                            html.Span("🟡 Medium", style={'color': '#f39c12', 'fontSize': '12px', 'marginRight': '20px'}),
+                            html.Span("🟠 High", style={'color': '#e67e22', 'fontSize': '12px', 'marginRight': '20px'}),
+                            html.Span("🔴 Very High", style={'color': '#e74c3c', 'fontSize': '12px'})
+                        ], style={'marginBottom': '5px'}),
                         dcc.Slider(
                             id='ses-slider',
-                            min=0, max=1, step=0.05,
+                            min=0, max=1, step=0.01,  # 0.01 step for continuous values
                             value=0.5,
-                            marks={i/10: f'{i/10:.1f}' for i in range(0, 11)},
+                            marks={
+                                0: {'label': '0', 'style': {'color': '#27ae60'}},
+                                0.1: '0.1', 0.2: '0.2', 0.3: '0.3', 0.4: '0.4',
+                                0.5: {'label': '0.5', 'style': {'color': '#f39c12'}},
+                                0.6: '0.6', 0.7: '0.7', 0.8: '0.8', 0.9: '0.9',
+                                1: {'label': '1', 'style': {'color': '#e74c3c'}}
+                            },
                             tooltip={"placement": "bottom", "always_visible": True}
-                        )
+                        ),
+                        html.P("📊 Higher score = More social vulnerability", 
+                               style={'fontSize': '12px', 'color': '#666', 'marginTop': '10px'})
                     ], style={'width': '65%', 'display': 'inline-block', 'padding': '10px'}),
                     
                     html.Div([
-                        html.Label("Genetic Risk Score (0-100):", style={'fontWeight': 'bold'}),
+                        html.Label("Genetic Risk Score:", style={'fontWeight': 'bold', 'fontSize': '16px'}),
                         html.Div([
-                            html.Span("🟢 Normal (0-33)", style={'color': '#27ae60', 'marginRight': '20px'}),
-                            html.Span("🟡 Moderate (34-66)", style={'color': '#f39c12', 'marginRight': '20px'}),
-                            html.Span("🔴 High (67-100)", style={'color': '#e74c3c'})
-                        ]),
+                            html.Span("🟢 Normal (0-33)", style={'color': '#27ae60', 'fontSize': '12px', 'marginRight': '20px'}),
+                            html.Span("🟡 Moderate (34-66)", style={'color': '#f39c12', 'fontSize': '12px', 'marginRight': '20px'}),
+                            html.Span("🔴 High (67-100)", style={'color': '#e74c3c', 'fontSize': '12px'})
+                        ], style={'marginBottom': '5px'}),
                         dcc.Slider(
                             id='genetic-slider',
-                            min=0, max=100, step=10,
+                            min=0, max=100, step=1,  # step=1 allows any integer value
                             value=33,
-                            marks={i: str(i) for i in range(0, 101, 20)},
+                            marks={
+                                0: {'label': '0', 'style': {'color': '#27ae60'}},
+                                10: '10', 20: '20', 30: '30',
+                                33: {'label': '33', 'style': {'color': '#f39c12'}},
+                                40: '40', 50: '50', 60: '60',
+                                66: {'label': '66', 'style': {'color': '#e67e22'}},
+                                70: '70', 80: '80', 90: '90',
+                                100: {'label': '100', 'style': {'color': '#e74c3c'}}
+                            },
                             tooltip={"placement": "bottom", "always_visible": True}
-                        )
+                        ),
+                        html.P("🧬 Based on number of risk alleles in drug-metabolizing genes", 
+                               style={'fontSize': '12px', 'color': '#666', 'marginTop': '10px'})
                     ], style={'width': '100%', 'padding': '10px', 'marginTop': '20px'})
                 ]),
                 
@@ -354,7 +372,6 @@ def update_heatmap(ancestry_filter):
         heatmap_df = df[df['ancestry'] == ancestry_filter]
     
     heatmap_df = heatmap_df.copy()
-    # Create SES quartiles based on equity score as proxy
     heatmap_df['ses_quartile'] = pd.qcut(heatmap_df['equity_score'], 4, 
                                           labels=['Q1 (Lowest Risk)', 'Q2', 'Q3', 'Q4 (Highest Risk)'])
     
@@ -398,5 +415,9 @@ print("\n[4/4] Starting web server...")
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8050))
     print(f"\n🌐 Starting server on port {port}")
+    print("📊 Open your browser and go to: http://localhost:8050")
+    print("🔍 Use the Clinical Calculator to assess patient risk")
+    print("🗺️ Explore disparity visualizations")
+    print("📋 Review clinical guidelines")
+    print("\n💡 TIP: Sliders now support continuous values (0.01 increments)")
     app.run(host='0.0.0.0', port=port, debug=False)
-# DEPLOYMENT VERSION - Mon May  4 13:57:29 EDT 2026
