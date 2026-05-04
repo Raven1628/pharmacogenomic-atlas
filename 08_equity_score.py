@@ -94,6 +94,36 @@ clinical_guidelines = {
         'Moderate Risk': '25% dose reduction',
         'High Risk': '50% dose reduction',
         'Very High Risk': 'Avoid fluorouracil'
+    },
+        'Codeine': {
+        'Low Risk': 'Standard dosing (30-60mg)',
+        'Moderate Risk': 'Consider 25% dose reduction',
+        'High Risk': 'Avoid codeine, consider tramadol or morphine',
+        'Very High Risk': 'Avoid completely, use non-opioid alternatives'
+    },
+    'Tamoxifen': {
+        'Low Risk': 'Standard dosing (20mg daily)',
+        'Moderate Risk': 'Monitor for reduced efficacy',
+        'High Risk': 'Consider aromatase inhibitor alternative',
+        'Very High Risk': 'Switch to anastrozole or letrozole'
+    },
+    'Phenytoin': {
+        'Low Risk': 'Standard dosing',
+        'Moderate Risk': 'Monitor levels more frequently',
+        'High Risk': 'Consider 25% dose reduction',
+        'Very High Risk': 'Consider fosphenytoin or alternative AED'
+    },
+    'Atorvastatin': {
+        'Low Risk': 'Standard dosing (10-20mg)',
+        'Moderate Risk': 'Start with 10mg, monitor CK',
+        'High Risk': 'Use pravastatin or rosuvastatin',
+        'Very High Risk': 'Avoid atorvastatin, use alternative statin'
+    },
+    'Capecitabine': {
+        'Low Risk': 'Standard dosing',
+        'Moderate Risk': 'Consider 25% dose reduction',
+        'High Risk': 'Consider 50% dose reduction',
+        'Very High Risk': 'Avoid, consider alternative chemotherapy'
     }
 }
 
