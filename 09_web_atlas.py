@@ -399,3 +399,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8050))
     print(f"\n🌐 Starting server on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
+# DEPLOYMENT VERSION - Mon May  4 13:57:29 EDT 2026
