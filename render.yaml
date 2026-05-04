@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: pharmacogenomic-atlas
+    runtime: python
+    repo: https://github.com/Raven1628/pharmacogenomic-atlas
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn 09_web_atlas:server
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
