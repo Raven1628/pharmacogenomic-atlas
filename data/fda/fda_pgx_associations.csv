@@ -1,0 +1,12 @@
+Drug,Gene,Variant,FDA_Label_Section,Action,Recommendation
+Abacavir,HLA-B,HLA-B*57:01,"Warnings, Boxed Warning",Screening required,Screen for HLA-B*57:01 before initiating; contraindicated if positive
+Carbamazepine,HLA-B,HLA-B*15:02,"Warnings, Boxed Warning",Screening recommended,Screen for HLA-B*15:02 in at-risk populations; avoid if positive
+Allopurinol,HLA-B,HLA-B*58:01,Warnings,Screening considered,Consider screening in high-risk populations
+Clopidogrel,CYP2C19,CYP2C19 poor metabolizer,Dosage and Administration,Alternative therapy,Consider alternative antiplatelet therapy in poor metabolizers
+Warfarin,CYP2C9/VKORC1,"CYP2C9*2/*3, VKORC1",Dosage and Administration,Dose adjustment,Use genotype-guided dosing for initial therapy
+Codeine,CYP2D6,CYP2D6 ultrarapid,"Boxed Warning, Contraindications",Contraindicated,Contraindicated in children; avoid in ultrarapid metabolizers
+Fluorouracil,DPYD,DPYD*2A,Dosage and Administration,Dose reduction,Consider dose reduction in intermediate metabolizers
+Simvastatin,SLCO1B1,SLCO1B1*5,Dosage and Administration,Alternative therapy,Consider lower dose or alternative statin
+Tamoxifen,CYP2D6,CYP2D6 poor metabolizer,Clinical Pharmacology,Alternative therapy,Consider alternative hormonal therapy
+Celecoxib,CYP2C9,CYP2C9*3,Clinical Pharmacology,Dose adjustment,Consider dose reduction in poor metabolizers
+Phenytoin,CYP2C9,CYP2C9*3,Clinical Pharmacology,Dose adjustment,Consider dose reduction in poor metabolizers
