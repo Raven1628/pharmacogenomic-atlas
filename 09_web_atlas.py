@@ -215,13 +215,6 @@ app.layout = html.Div([
                             id='ses-slider',
                             min=0, max=1, step=0.01,
                             value=0.5,
-                            marks={
-                                0: {'label': '0', 'style': {'color': '#27ae60'}},
-                                0.1: '0.1', 0.2: '0.2', 0.3: '0.3', 0.4: '0.4',
-                                0.5: {'label': '0.5', 'style': {'color': '#f39c12'}},
-                                0.6: '0.6', 0.7: '0.7', 0.8: '0.8', 0.9: '0.9',
-                                1: {'label': '1', 'style': {'color': '#e74c3c'}}
-                            },
                             tooltip={"placement": "bottom", "always_visible": True}
                         ),
                         html.P("📊 Higher score = More social vulnerability", 
