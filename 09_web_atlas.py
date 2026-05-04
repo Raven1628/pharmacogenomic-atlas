@@ -326,7 +326,28 @@ app.layout = html.Div([
         ]),
         
         # TAB 5: About
-        dcc.Tab(label='ℹ️ About', children=[
+        
+        dcc.Tab(label='📊 PCA Analysis', children=[
+            html.Div([
+                html.H3("Principal Component Analysis", style={'marginTop': '20px'}),
+                html.P("PCA shows how genetic risk and SES vulnerability combine to create overall risk scores."),
+                html.Img(src='/assets/pca_fixed.png', style={'width': '100%', 'borderRadius': '10px'}),
+                html.P(f"PC1 explains 52.7% of variance, PC2 explains 33.6%", 
+                       style={'fontSize': '12px', 'color': '#666', 'marginTop': '10px'})
+            ], style={'padding': '20px'})
+        ]),
+        
+        dcc.Tab(label='🗺️ UMAP Analysis', children=[
+            html.Div([
+                html.H3("UMAP Manifold Learning", style={'marginTop': '20px'}),
+                html.P("UMAP reveals non-linear patterns in the data, often showing clearer separation of risk groups than PCA."),
+                html.Img(src='/assets/umap_fixed.png', style={'width': '100%', 'borderRadius': '10px'}),
+                html.P("UMAP preserves local structure, showing distinct clusters of patients with similar risk profiles",
+                       style={'fontSize': '12px', 'color': '#666', 'marginTop': '10px'})
+            ], style={'padding': '20px'})
+        ]),
+        
+dcc.Tab(label='ℹ️ About', children=[
             html.Div([
                 html.H3("About the Pharmacogenomic Equity Atlas", style={'marginTop': '20px'}),
                 html.P("This tool integrates genetic, socioeconomic, and FDA pharmacogenetic data to guide personalized medicine."),
