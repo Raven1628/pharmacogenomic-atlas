@@ -2,11 +2,25 @@ gene,drug,phenotype,rsid,variant_name,effect_allele,beta,se,z_score,p_value,dire
 CYP2C9,Warfarin,Warfarin dose requirement,rs1799853,CYP2C9*2,T,-0.35,0.11666666666666665,-3.0,2.1e-12,decreased_response
 CYP2C9,Warfarin,Warfarin dose requirement,rs1057910,CYP2C9*3,C,-0.42,0.13999999999999999,-3.0,3.4e-15,decreased_response
 CYP2C9,Warfarin,Warfarin dose requirement,rs9332239,CYP2C9*6,A,-0.28,0.09333333333333334,-3.0,1.2e-08,decreased_response
+CYP2C9,Warfarin,Warfarin dose requirement,rs28371686,CYP2C9*5,C,-0.31,0.10333333333333333,-3.0,5.6e-09,decreased_response
+CYP2C9,Warfarin,Warfarin dose requirement,rs9332131,CYP2C9*11,A,-0.25,0.08333333333333333,-3.0,2.3e-07,decreased_response
 CYP2C19,Clopidogrel,Clopidogrel response,rs4244285,CYP2C19*2,G,-0.38,0.12666666666666668,-3.0,5.6e-14,decreased_response
 CYP2C19,Clopidogrel,Clopidogrel response,rs4986893,CYP2C19*3,A,-0.31,0.10333333333333333,-3.0,2.3e-10,decreased_response
 CYP2C19,Clopidogrel,Clopidogrel response,rs12248560,CYP2C19*17,C,0.25,0.08333333333333333,3.0,1.8e-07,increased_toxicity
+CYP2C19,Clopidogrel,Clopidogrel response,rs17884712,CYP2C19*4,A,-0.22,0.07333333333333333,-3.0,3.4e-06,decreased_response
+CYP2C19,Clopidogrel,Clopidogrel response,rs56337013,CYP2C19*8,T,-0.19,0.06333333333333334,-3.0,4.5e-05,decreased_response
 SLCO1B1,Simvastatin,Statin-induced myopathy,rs4149056,SLCO1B1*5,C,0.52,0.17333333333333334,3.0,8.7e-18,increased_toxicity
 SLCO1B1,Simvastatin,Statin-induced myopathy,rs2306283,SLCO1B1*1a,G,-0.18,0.06,-3.0,2.1e-05,decreased_response
+SLCO1B1,Simvastatin,Statin-induced myopathy,rs4149081,SLCO1B1*15,T,0.45,0.15,3.0,1.2e-12,increased_toxicity
+SLCO1B1,Simvastatin,Statin-induced myopathy,rs11045819,SLCO1B1*17,A,0.38,0.12666666666666668,3.0,3.4e-10,increased_toxicity
 DPYD,Fluorouracil,Fluorouracil toxicity,rs3918290,DPYD*2A,A,0.89,0.2966666666666667,3.0,1.2e-22,increased_toxicity
 DPYD,Fluorouracil,Fluorouracil toxicity,rs55886062,DPYD*13,A,0.67,0.22333333333333336,3.0,3.4e-14,increased_toxicity
 DPYD,Fluorouracil,Fluorouracil toxicity,rs67376798,DPYD*9B,T,0.34,0.11333333333333334,3.0,4.5e-08,increased_toxicity
+DPYD,Fluorouracil,Fluorouracil toxicity,rs75017182,DPYD*4,G,0.41,0.13666666666666666,3.0,2.1e-09,increased_toxicity
+CYP2D6,Tamoxifen,Tamoxifen efficacy,rs3892097,CYP2D6*4,C,0.45,0.15,3.0,1.2e-15,increased_toxicity
+CYP2D6,Tamoxifen,Tamoxifen efficacy,rs1065852,CYP2D6*10,T,0.32,0.10666666666666667,3.0,2.3e-11,increased_toxicity
+CYP2D6,Tamoxifen,Tamoxifen efficacy,rs5030655,CYP2D6*3,A,0.38,0.12666666666666668,3.0,5.6e-12,increased_toxicity
+CYP2D6,Tamoxifen,Tamoxifen efficacy,rs1135840,CYP2D6*41,C,0.28,0.09333333333333334,3.0,3.4e-09,increased_toxicity
+HLA-B,Allopurinol,SCAR,rs2395029,HLA-B*57:01,G,5.2,1.7333333333333334,3.0,5.4e-25,increased_toxicity
+HLA-B,Allopurinol,SCAR,rs2844682,HLA-B*15:02,T,4.8,1.5999999999999999,3.0,2.1e-20,increased_toxicity
+HLA-B,Allopurinol,SCAR,rs9263726,HLA-B*58:01,A,4.5,1.5,3.0,1.8e-18,increased_toxicity
