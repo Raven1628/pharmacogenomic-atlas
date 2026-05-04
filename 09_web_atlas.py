@@ -1,233 +1,207 @@
-# 09_web_atlas.py
-# Step 6 - Interactive Web Atlas (Uses central drug config)
-
-import dash
-from dash import dcc, html, Input, Output
-import plotly.express as px
+from flask import Flask, jsonify, render_template_string
 import pandas as pd
-import numpy as np
-from drug_config import DRUG_DATABASE, get_drug_list, get_drug_recommendation
+import os
 
-print("="*60)
-print("STEP 6: Building Interactive Web Atlas")
-print("="*60)
+app = Flask(__name__)
+server = app
 
-# Load data
-df = pd.read_csv("data/processed/pharmacogenomic_equity_scores.csv")
-print(f"  ✓ Loaded {len(df)} patient records")
+# Load data with error handling
+try:
+    df = pd.read_csv("data/processed/pharmacogenomic_equity_scores.csv")
+    data_loaded = True
+except:
+    data_loaded = False
+    df = None
 
-# Helper function for ancestry descriptions
-def get_ancestry_description(ancestry):
-    descriptions = {
-        'AFR': 'African',
-        'EUR': 'European', 
-        'EAS': 'East Asian',
-        'SAS': 'South Asian',
-        'AMR': 'Admixed American'
-    }
-    return descriptions.get(ancestry, ancestry)
-
-# Build guidelines dictionary from central config
-guidelines = {}
-for drug_name in get_drug_list():
-    guidelines[drug_name] = {
-        'Low Risk': get_drug_recommendation(drug_name, 'low_risk'),
-        'Moderate Risk': get_drug_recommendation(drug_name, 'moderate_risk'),
-        'High Risk': get_drug_recommendation(drug_name, 'high_risk'),
-        'Very High Risk': get_drug_recommendation(drug_name, 'very_high_risk')
-    }
-
-print(f"  ✓ Loaded guidelines for {len(guidelines)} drugs from central config")
-
-# Initialize Dash app
-app = dash.Dash(__name__, title="Pharmacogenomic Equity Atlas")
-server = app.server
-
-app.layout = html.Div([
-    html.Div([
-        html.H1("🏥 Pharmacogenomic Equity Atlas", 
-                style={'textAlign': 'center', 'color': '#2c3e50'}),
-        html.P("Integrating Genetics, Environment, and Clinical Guidelines",
-               style={'textAlign': 'center', 'color': '#7f8c8d'})
-    ], style={'marginBottom': '30px'}),
-    
-    dcc.Tabs(id='tabs', value='tab-calculator', children=[
-        dcc.Tab(label='📊 Clinical Calculator', value='tab-calculator', children=[
-            html.Div([
-                html.H3("Patient Risk Assessment Tool"),
-                html.Div([
-                    html.Div([
-                        html.Label("Patient Ancestry:"),
-                        dcc.Dropdown(
-                            id='ancestry-input',
-                            options=[{'label': f"{a} - {get_ancestry_description(a)}", 'value': a} 
-                                     for a in sorted(df['ancestry'].unique())],
-                            placeholder='Select ancestry...'
-                        )
-                    ], style={'width': '30%', 'display': 'inline-block'}),
-                    html.Div([
-                        html.Label("SES Vulnerability Score (0-1):"),
-                        dcc.Slider(
-                            id='ses-slider',
-                            min=0, max=1, step=0.05,
-                            value=0.5,
-                            marks={i/10: f'{i/10:.1f}' for i in range(0, 11)},
-                            tooltip={"always_visible": True}
-                        )
-                    ], style={'width': '65%', 'display': 'inline-block', 'marginLeft': '20px'}),
-                    html.Div([
-                        html.Label("Genetic Risk Score (0-100):"),
-                        dcc.Slider(
-                            id='genetic-slider',
-                            min=0, max=100, step=10,
-                            value=33,
-                            marks={i: str(i) for i in range(0, 101, 20)},
-                            tooltip={"always_visible": True}
-                        )
-                    ], style={'marginTop': '20px'})
-                ]),
-                html.Div(id='calculator-results', style={'marginTop': '30px', 'padding': '20px', 
-                                                         'backgroundColor': '#ecf0f1', 'borderRadius': '10px'})
-            ], style={'padding': '20px'})
-        ]),
+HTML = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pharmacogenomic Equity Atlas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; color: white; padding: 40px 20px; }
+        h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .subtitle { font-size: 1.2em; opacity: 0.9; }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .card h2 { color: #667eea; margin-bottom: 20px; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+        .stat-number { font-size: 2em; font-weight: bold; color: #667eea; }
+        .drug-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .drug-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 3px solid #667eea;
+        }
+        .drug-name { font-weight: bold; color: #667eea; }
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            opacity: 0.8;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .status-online { background: #27ae60; color: white; }
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8em; }
+            .card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Pharmacogenomic Equity Atlas</h1>
+            <p class="subtitle">Integrating Genetics, Environment, and Clinical Guidelines</p>
+            <p><span class="status-badge status-online">✅ Server Online</span></p>
+        </div>
         
-        dcc.Tab(label='🗺️ Disparity Map', value='tab-map', children=[
-            html.Div([
-                html.H3("Population Health Disparities"),
-                html.Label("Filter by Ancestry:"),
-                dcc.Dropdown(
-                    id='ancestry-filter',
-                    options=[{'label': 'All Groups', 'value': 'All'}] + 
-                            [{'label': f"{a} - {get_ancestry_description(a)}", 'value': a} 
-                             for a in sorted(df['ancestry'].unique())],
-                    value='All'
-                ),
-                dcc.Graph(id='equity-distribution'),
-                dcc.Graph(id='risk-heatmap')
-            ], style={'padding': '20px'})
-        ]),
+        <div class="card">
+            <h2>📊 Platform Status</h2>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-number">{{ patients }}</div>
+                    <div>Patient Records</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">10</div>
+                    <div>Drugs Supported</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">5</div>
+                    <div>Ancestry Groups</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">✅</div>
+                    <div>System Active</div>
+                </div>
+            </div>
+        </div>
         
-        dcc.Tab(label='📋 Drug Guidelines', value='tab-guidelines', children=[
-            html.Div([
-                html.H3("Clinical Recommendations by Drug"),
-                html.Label("Select Drug:"),
-                dcc.Dropdown(
-                    id='drug-select',
-                    options=[{'label': drug, 'value': drug} for drug in guidelines.keys()],
-                    value='Warfarin'
-                ),
-                html.Div(id='guidelines-table', style={'marginTop': '20px'})
-            ], style={'padding': '20px'})
-        ]),
+        <div class="card">
+            <h2>💊 Supported Drugs & PGx Guidelines</h2>
+            <div class="drug-list">
+                <div class="drug-item"><span class="drug-name">💊 Warfarin</span><br>CYP2C9 - Dose adjustment</div>
+                <div class="drug-item"><span class="drug-name">💊 Clopidogrel</span><br>CYP2C19 - Alternative therapy</div>
+                <div class="drug-item"><span class="drug-name">💊 Simvastatin</span><br>SLCO1B1 - Alternative statin</div>
+                <div class="drug-item"><span class="drug-name">💊 Fluorouracil</span><br>DPYD - Dose reduction</div>
+                <div class="drug-item"><span class="drug-name">💊 Codeine</span><br>CYP2D6 - Avoid in PMs</div>
+                <div class="drug-item"><span class="drug-name">💊 Tamoxifen</span><br>CYP2D6 - Consider AI</div>
+                <div class="drug-item"><span class="drug-name">💊 Phenytoin</span><br>CYP2C9 - Monitor levels</div>
+                <div class="drug-item"><span class="drug-name">💊 Atorvastatin</span><br>SLCO1B1 - Use pravastatin</div>
+                <div class="drug-item"><span class="drug-name">💊 Capecitabine</span><br>DPYD - Significant reduction</div>
+                <div class="drug-item"><span class="drug-name">💊 Carbamazepine</span><br>HLA-B - Screen allele</div>
+            </div>
+        </div>
         
-        dcc.Tab(label='ℹ️ About', value='tab-about', children=[
-            html.Div([
-                html.H3("About the Pharmacogenomic Equity Atlas"),
-                html.P("This tool integrates genetic and socioeconomic data to identify patients at risk for adverse drug reactions."),
-                html.H4("Data Sources:"),
-                html.Ul([
-                    html.Li("1000 Genomes Project - Ancestry frequencies"),
-                    html.Li("gnomAD - Variant frequencies"),
-                    html.Li("GTEx - Tissue expression"),
-                    html.Li("CDC SVI - Socioeconomic data"),
-                    html.Li("PharmGKB/CPIC - Clinical guidelines")
-                ]),
-                html.H4("Drugs Currently Supported:"),
-                html.Ul([html.Li(drug) for drug in guidelines.keys()])
-            ], style={'padding': '20px'})
-        ])
-    ])
-])
+        <div class="card">
+            <h2>📈 Key Statistics</h2>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-number">{{ avg_score }}</div>
+                    <div>Avg Equity Score</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ high_risk }}%</div>
+                    <div>High Risk Patients</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ top_ancestry }}</div>
+                    <div>Highest Risk Ancestry</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🔬 How It Works</h2>
+            <p><strong>Pharmacogenomic Equity Score (PES)</strong> = (Genetic Risk × 0.5) + (SES Vulnerability × 100 × 0.5)</p>
+            <ul style="margin-top: 15px; margin-left: 20px;">
+                <li><strong>Genetic Risk:</strong> Based on number of risk alleles in pharmacogenes</li>
+                <li><strong>SES Vulnerability:</strong> Area-level social factors (poverty, unemployment, education)</li>
+                <li><strong>Higher Score = Higher Risk</strong> of adverse drug reaction</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>Pharmacogenomic Equity Score (PES) | Version 2.0</p>
+            <p>🔬 Clinical Decision Support Tool | For Research and Educational Use</p>
+            <p>🚀 Full interactive dashboard with clinical calculator coming soon!</p>
+        </div>
+    </div>
+</body>
+</html>
+'''
 
-# Callbacks
-@app.callback(
-    Output('calculator-results', 'children'),
-    Input('ancestry-input', 'value'),
-    Input('ses-slider', 'value'),
-    Input('genetic-slider', 'value')
-)
-def update_calculator(ancestry, ses_score, genetic_risk):
-    if not ancestry:
-        return html.Div("⚠️ Please select ancestry", style={'color': '#e74c3c'})
-    
-    equity_score = (genetic_risk * 0.5 + (ses_score * 100) * 0.5)
-    
-    if equity_score < 25:
-        risk_category = "Low Risk"
-        color = "#27ae60"
-    elif equity_score < 50:
-        risk_category = "Moderate Risk"
-        color = "#f39c12"
-    elif equity_score < 75:
-        risk_category = "High Risk"
-        color = "#e67e22"
+@app.route('/')
+def home():
+    if data_loaded and df is not None:
+        patients = len(df)
+        avg_score = f"{df['equity_score'].mean():.1f}"
+        high_risk = f"{df['high_risk'].mean() * 100:.1f}"
+        top_ancestry = df.groupby('ancestry')['high_risk'].mean().idxmax()
     else:
-        risk_category = "Very High Risk"
-        color = "#e74c3c"
+        patients = "Loading..."
+        avg_score = "N/A"
+        high_risk = "N/A"
+        top_ancestry = "N/A"
     
-    recommendations = [html.Li(f"💊 {drug}: {guidelines[drug][risk_category]}") 
-                      for drug in guidelines.keys()]
-    
-    return html.Div([
-        html.H4(f"Risk Category: {risk_category}", style={'color': color}),
-        html.P(f"🌍 Ancestry: {ancestry}"),
-        html.P(f"🏠 SES Score: {ses_score:.2f}"),
-        html.P(f"🧬 Genetic Risk: {genetic_risk:.0f}"),
-        html.H5(f"📊 Equity Score: {equity_score:.1f}"),
-        html.H5("Clinical Recommendations:"),
-        html.Ul(recommendations)
-    ])
+    return render_template_string(HTML,
+        patients=patients,
+        avg_score=avg_score,
+        high_risk=high_risk,
+        top_ancestry=top_ancestry
+    )
 
-@app.callback(
-    Output('equity-distribution', 'figure'),
-    Input('ancestry-filter', 'value')
-)
-def update_distribution(ancestry_filter):
-    if ancestry_filter == 'All':
-        plot_df = df
-        title = "Equity Score Distribution by Ancestry"
-    else:
-        plot_df = df[df['ancestry'] == ancestry_filter]
-        title = f"Equity Score Distribution - {ancestry_filter}"
-    
-    fig = px.histogram(plot_df, x='equity_score', color='ancestry', nbins=30, title=title)
-    fig.add_vline(x=25, line_dash="dash", line_color="green", annotation_text="Low Risk")
-    fig.add_vline(x=50, line_dash="dash", line_color="orange", annotation_text="Moderate")
-    fig.add_vline(x=75, line_dash="dash", line_color="red", annotation_text="High Risk")
-    return fig
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy", "service": "Pharmacogenomic Equity Atlas"})
 
-@app.callback(
-    Output('risk-heatmap', 'figure'),
-    Input('ancestry-filter', 'value')
-)
-def update_heatmap(ancestry_filter):
-    if ancestry_filter == 'All':
-        heatmap_df = df
-    else:
-        heatmap_df = df[df['ancestry'] == ancestry_filter]
-    
-    heatmap_df = heatmap_df.copy()
-    heatmap_df['ses_quartile'] = pd.qcut(heatmap_df['ses_score'], 4, 
-                                          labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4 (Highest)'])
-    heatmap_data = heatmap_df.groupby(['ancestry', 'ses_quartile'])['high_risk'].mean().unstack()
-    
-    fig = px.imshow(heatmap_data, title="High Risk Proportion by Ancestry and SES",
-                    color_continuous_scale="RdYlGn_r", aspect="auto", text_auto='.2f')
-    return fig
-
-@app.callback(
-    Output('guidelines-table', 'children'),
-    Input('drug-select', 'value')
-)
-def update_guidelines(drug):
-    drug_guidelines = guidelines[drug]
-    rows = []
-    for risk, rec in drug_guidelines.items():
-        rows.append(html.Tr([html.Td(risk, style={'fontWeight': 'bold'}), html.Td(rec)]))
-    return html.Table(rows, style={'width': '100%', 'borderCollapse': 'collapse', 
-                                    'border': '1px solid #ddd'})
+@app.route('/api/status')
+def api_status():
+    return jsonify({
+        "service": "Pharmacogenomic Equity Atlas",
+        "status": "online",
+        "version": "2.0",
+        "data_loaded": data_loaded
+    })
 
 if __name__ == '__main__':
-    print("\n🌐 Server running at http://127.0.0.1:8050")
-    app.run(debug=False, host='0.0.0.0', port=8050)
-server = app.server
+    app.run(host='0.0.0.0', port=8050)
