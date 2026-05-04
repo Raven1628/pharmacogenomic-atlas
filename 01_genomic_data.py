@@ -159,7 +159,7 @@ print("\n" + "="*50)
 print("Querying gnomAD API...")
 print("="*50)
 
-pharmacogenes = ["CYP2D6", "CYP2C19", "CYP2C9", "SLCO1B1", "DPYD", "CYP2B6"]
+pharmacogenes = ["CYP2D6", "CYP2C19", "CYP2C9", "SLCO1B1", "DPYD", "CYP2B6", "HLA-B"]
 all_results = []
 
 for gene in pharmacogenes:

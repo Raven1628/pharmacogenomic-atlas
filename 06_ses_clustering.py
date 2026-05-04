@@ -61,7 +61,7 @@ ses_quartiles = ses_df['SES_quartile'].unique()
 
 # Create synthetic population
 np.random.seed(42)
-n_individuals = 10000
+n_individuals = 1000
 
 synthetic_pop = []
 ancestry_weights = {'AFR': 0.264, 'EUR': 0.201, 'EAS': 0.201, 'SAS': 0.195, 'AMR': 0.139}  # Based on 1000G

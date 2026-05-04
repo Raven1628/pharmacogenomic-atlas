@@ -110,10 +110,24 @@ guidelines = {
     },
     'Carbamazepine': {
         'gene': 'HLA-B',
-        'Low Risk': 'Standard dosing',
-        'Moderate Risk': 'Monitor for rash',
-        'High Risk': 'Screen for HLA-B*1502',
-        'Very High Risk': 'Avoid carbamazepine'
+        'Low Risk': 'Standard dosing (200-400mg daily)',
+        'Moderate Risk': 'Consider alternative, monitor for rash',
+        'High Risk': 'Screen for HLA-B*1502 allele',
+        'Very High Risk': 'Avoid carbamazepine, use alternative'
+    },
+    'Allopurinol': {
+        'gene': 'HLA-B',
+        'Low Risk': 'Standard dosing (100-300mg daily)',
+        'Moderate Risk': 'Consider alternative, monitor for rash',
+        'High Risk': 'Screen for HLA-B*5801 allele',
+        'Very High Risk': 'Avoid allopurinol, use alternative'
+    },
+    'Abacavir': {
+        'gene': 'HLA-B',
+        'Low Risk': 'Standard dosing (600mg daily)',
+        'Moderate Risk': 'Screen for HLA-B*5701',
+        'High Risk': 'Screen for HLA-B*5701',
+        'Very High Risk': 'Contraindicated if HLA-B*5701 positive'
     }
 }
 

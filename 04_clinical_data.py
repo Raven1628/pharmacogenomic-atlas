@@ -44,6 +44,24 @@ drug_gene_pairs = {
         "phenotype": "Fluorouracil toxicity",
         "gwas_id": "GCST006318",
         "description": "Drug-induced toxicity"
+    },
+    "HLA-B": {
+    "drug": "Carbamazepine",
+    "phenotype": "Stevens-Johnson Syndrome",
+    "gwas_id": "GCST001360",
+    "description": "HLA-B*1502 screening recommended"
+    },
+    "HLA-B": {
+        "drug": "Allopurinol",
+        "phenotype": "Severe cutaneous adverse reaction",
+        "gwas_id": "GCST001361", 
+        "description": "HLA-B*5801 screening recommended"
+    },
+    "HLA-B": {
+        "drug": "Abacavir",
+        "phenotype": "Hypersensitivity reaction",
+        "gwas_id": "GCST000935",
+        "description": "HLA-B*5701 screening required"
     }
 }
 
@@ -93,7 +111,12 @@ known_variants = {
         {"rsid": "rs3918290", "variant": "DPYD*2A", "effect_size": 0.89, "p_value": 1.2e-22, "effect_allele": "A"},
         {"rsid": "rs55886062", "variant": "DPYD*13", "effect_size": 0.67, "p_value": 3.4e-14, "effect_allele": "A"},
         {"rsid": "rs67376798", "variant": "DPYD*9B", "effect_size": 0.34, "p_value": 4.5e-8, "effect_allele": "T"}
-    ]
+    ],
+    "HLA-B": [
+    {"rsid": "rs2395029", "variant": "HLA-B*57:01", "effect_size": 5.2, "p_value": 5.4e-25, "effect_allele": "G"},
+    {"rsid": "rs2844682", "variant": "HLA-B*15:02", "effect_size": 4.8, "p_value": 2.1e-20, "effect_allele": "T"},
+    {"rsid": "rs9263726", "variant": "HLA-B*58:01", "effect_size": 4.5, "p_value": 1.8e-18, "effect_allele": "A"},
+    ] 
 }
 
 # Create summary statistics for each gene

@@ -39,13 +39,15 @@ def predict_variant_effect(variant_id: str, gene: str) -> Dict:
         'CYP2C9': ['10-96693484-C-T'], 
         'CYP2C19': ['10-94764459-G-A'],
         'SLCO1B1': ['12-21178695-T-C'],
-        'DPYD': ['1-97548285-G-A']
+        'DPYD': ['1-97548285-G-A'],
+        'HLA-B': ['6-31324567-G-A', '6-31321543-C-T']
     }
     
     known_loss_of_function = {
         'CYP2D6': ['22-42130653-G-A'],  # CYP2D6*4
         'CYP2C9': ['10-96699159-C-T'],  # CYP2C9*3
-        'CYP2C19': ['10-94781807-G-A']  # CYP2C19*2
+        'CYP2C19': ['10-94781807-G-A'],  # CYP2C19*2
+        'HLA-B': ['6-31321345-G-A']  # HLA-B*57:01
     }
     
     # Random assignment based on patterns
@@ -174,6 +176,11 @@ def assign_star_allele(gene: str, variants: List[str]) -> Dict:
             '*1': {'activity': 2.0, 'phenotype': 'Normal metabolizer', 'variants': []},
             '*2': {'activity': 0.0, 'phenotype': 'Poor metabolizer', 'variants': ['10-94781807-G-A']},
             '*17': {'activity': 3.0, 'phenotype': 'Ultrarapid metabolizer', 'variants': []}
+        },
+        'HLA-B': {
+        '*57:01': {'activity': 'risk_allele', 'phenotype': 'Abacavir hypersensitivity', 'variants': ['6-31321345-G-A']},
+        '*15:02': {'activity': 'risk_allele', 'phenotype': 'Carbamazepine SJS/TEN', 'variants': ['6-31324567-G-A']},
+        '*58:01': {'activity': 'risk_allele', 'phenotype': 'Allopurinol SCAR', 'variants': ['6-31321543-C-T']}
         }
     }
     
