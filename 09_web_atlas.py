@@ -1,10 +1,10 @@
 # ============================================================
-# PHARMACOGENOMIC EQUITY ATLAS - CLEAN VERSION
-# No FDA labels - Simple and clean interface
+# PHARMACOGENOMIC EQUITY ATLAS - COMPLETE FIXED VERSION
+# Includes: Patient reports, Drug guidelines, Score calculators
 # ============================================================
 
 import dash
-from dash import dcc, html, Input, Output
+from dash import dcc, html, Input, Output, State
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -14,13 +14,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 print("="*60)
-print("PHARMACOGENOMIC EQUITY ATLAS - CLEAN VERSION")
+print("PHARMACOGENOMIC EQUITY ATLAS - COMPLETE VERSION")
 print("="*60)
 
 # ============================================================
 # 1. LOAD DATA
 # ============================================================
-print("\n[1/4] Loading data...")
+print("\n[1/5] Loading data...")
 
 # Load primary dataset
 try:
@@ -49,11 +49,10 @@ except:
 dataset_size = len(df)
 
 # ============================================================
-# 2. DRUG DATABASE (NO FDA LABELS)
+# 2. DRUG DATABASE
 # ============================================================
-print("\n[2/4] Loading drug database...")
+print("\n[2/5] Loading drug database...")
 
-# Simple drug database - no FDA labels
 drugs_db = {
     'Warfarin': {
         'gene': 'CYP2C9',
@@ -156,10 +155,28 @@ def get_ancestry_description(ancestry):
     }
     return descriptions.get(ancestry, ancestry)
 
+def calculate_genetic_risk(genotype_counts, total_variants=10):
+    """Calculate genetic risk score from genotype counts"""
+    # genotype_counts: number of risk alleles (0-20 for 10 variants)
+    max_possible = total_variants * 2
+    risk_score = (genotype_counts / max_possible) * 100
+    return min(100, max(0, risk_score))
+
+def calculate_ses_risk(poverty_rate, unemployment_rate, no_hs_diploma):
+    """Calculate SES risk score from individual metrics"""
+    # Normalize each metric to 0-100 scale
+    poverty_norm = min(100, max(0, poverty_rate))
+    unemployment_norm = min(100, max(0, unemployment_rate * 10))  # 0-10% -> 0-100
+    education_norm = min(100, max(0, no_hs_diploma))
+    
+    # Weighted average
+    ses_risk = (poverty_norm * 0.4 + unemployment_norm * 0.3 + education_norm * 0.3)
+    return ses_risk
+
 # ============================================================
 # 4. CREATE DASH APP
 # ============================================================
-print("\n[3/4] Creating Dash application...")
+print("\n[3/5] Creating Dash application...")
 
 app = dash.Dash(__name__, title="Pharmacogenomic Equity Atlas")
 server = app.server
@@ -184,80 +201,117 @@ app.layout = html.Div([
             html.Div([
                 html.H3("Patient Risk Assessment Tool", style={'marginTop': '20px'}),
                 
-                # Information box about metrics
+                # Toggle between quick mode and detailed mode
                 html.Div([
-                    html.H4("📖 Understanding the Metrics", style={'color': '#2c3e50'}),
+                    html.Label("Input Mode:", style={'fontWeight': 'bold'}),
+                    dcc.RadioItems(
+                        id='input-mode',
+                        options=[
+                            {'label': ' Quick Mode (Use sliders)', 'value': 'quick'},
+                            {'label': ' Detailed Mode (Enter parameters)', 'value': 'detailed'}
+                        ],
+                        value='quick',
+                        inline=True,
+                        style={'marginBottom': '20px'}
+                    ),
+                ]),
+                
+                # Quick mode inputs (sliders)
+                html.Div(id='quick-inputs', children=[
                     html.Div([
                         html.Div([
-                            html.H5("🧬 Genetic Risk Score (0-100)", style={'color': '#27ae60'}),
-                            html.Ul([
-                                html.Li("🟢 0-33: Normal metabolizer (standard dosing)"),
-                                html.Li("🟡 34-66: Intermediate metabolizer (moderate risk)"),
-                                html.Li("🔴 67-100: Poor/Ultrarapid metabolizer (high risk)")
-                            ])
-                        ], style={'width': '45%', 'display': 'inline-block', 
-                                 'backgroundColor': '#f0fdf4', 'padding': '15px', 'borderRadius': '10px'}),
+                            html.Label("Patient Ancestry:", style={'fontWeight': 'bold'}),
+                            dcc.Dropdown(
+                                id='ancestry-input',
+                                options=[{'label': f"{a} - {get_ancestry_description(a)}", 'value': a} 
+                                         for a in sorted(df['ancestry'].unique())],
+                                placeholder='Select ancestry...',
+                                style={'marginBottom': '15px'}
+                            )
+                        ], style={'width': '30%', 'display': 'inline-block', 'padding': '10px'}),
                         
                         html.Div([
-                            html.H5("🏠 SES Vulnerability Score (0-1)", style={'color': '#e67e22'}),
-                            html.Ul([
-                                html.Li("Poverty rate (% below federal poverty line)"),
-                                html.Li("Unemployment rate"),
-                                html.Li("Education level (% without high school diploma)")
-                            ])
-                        ], style={'width': '45%', 'display': 'inline-block', 
-                                 'backgroundColor': '#fff3e0', 'padding': '15px', 'marginLeft': '20px', 
-                                 'borderRadius': '10px'})
-                    ]),
-                    html.Div([
-                        html.P("Equity Score = (Genetic Risk × 0.5) + (SES Score × 100 × 0.5)", 
-                               style={'textAlign': 'center', 'fontWeight': 'bold'})
+                            html.Label("SES Vulnerability Score (0-1):", style={'fontWeight': 'bold'}),
+                            html.Div([
+                                html.Span("🟢 Low", style={'color': '#27ae60', 'marginRight': '20px'}),
+                                html.Span("🟡 Medium", style={'color': '#f39c12', 'marginRight': '20px'}),
+                                html.Span("🟠 High", style={'color': '#e67e22', 'marginRight': '20px'}),
+                                html.Span("🔴 Very High", style={'color': '#e74c3c'})
+                            ], style={'marginBottom': '5px'}),
+                            dcc.Slider(
+                                id='ses-slider',
+                                min=0, max=1, step=0.01, value=0.5,
+                                marks={i/10: f'{i/10:.1f}' for i in range(0, 11)},
+                                tooltip={"placement": "bottom", "always_visible": True}
+                            ),
+                            html.P("How to calculate: Based on poverty rate, unemployment, and education level", 
+                                   style={'fontSize': '12px', 'color': '#666', 'marginTop': '10px'})
+                        ], style={'width': '65%', 'display': 'inline-block', 'padding': '10px'}),
+                        
+                        html.Div([
+                            html.Label("Genetic Risk Score (0-100):", style={'fontWeight': 'bold'}),
+                            html.Div([
+                                html.Span("🟢 Normal (0-33)", style={'color': '#27ae60', 'marginRight': '20px'}),
+                                html.Span("🟡 Moderate (34-66)", style={'color': '#f39c12', 'marginRight': '20px'}),
+                                html.Span("🔴 High (67-100)", style={'color': '#e74c3c'})
+                            ], style={'marginBottom': '5px'}),
+                            dcc.Slider(
+                                id='genetic-slider',
+                                min=0, max=100, step=1, value=33,
+                                marks={i: str(i) for i in range(0, 101, 10)},
+                                tooltip={"placement": "bottom", "always_visible": True}
+                            ),
+                            html.P("How to calculate: Based on number of risk alleles in pharmacogenes", 
+                                   style={'fontSize': '12px', 'color': '#666', 'marginTop': '10px'})
+                        ], style={'width': '100%', 'padding': '10px', 'marginTop': '20px'})
                     ])
-                ], style={'backgroundColor': '#e8f4f8', 'padding': '20px', 'borderRadius': '10px', 'marginBottom': '20px'}),
+                ]),
                 
-                # Inputs
-                html.Div([
+                # Detailed mode inputs (parameter entry)
+                html.Div(id='detailed-inputs', style={'display': 'none'}, children=[
                     html.Div([
-                        html.Label("Patient Ancestry:", style={'fontWeight': 'bold'}),
-                        dcc.Dropdown(
-                            id='ancestry-input',
-                            options=[{'label': f"{a} - {get_ancestry_description(a)}", 'value': a} 
-                                     for a in sorted(df['ancestry'].unique())],
-                            placeholder='Select ancestry...',
-                            style={'marginBottom': '15px'}
-                        )
-                    ], style={'width': '30%', 'display': 'inline-block', 'padding': '10px'}),
-                    
-                    html.Div([
-                        html.Label("SES Vulnerability Score (0-1):", style={'fontWeight': 'bold'}),
                         html.Div([
-                            html.Span("🟢 Low", style={'color': '#27ae60', 'marginRight': '20px'}),
-                            html.Span("🟡 Medium", style={'color': '#f39c12', 'marginRight': '20px'}),
-                            html.Span("🟠 High", style={'color': '#e67e22', 'marginRight': '20px'}),
-                            html.Span("🔴 Very High", style={'color': '#e74c3c'})
-                        ], style={'marginBottom': '5px'}),
-                        dcc.Slider(
-                            id='ses-slider',
-                            min=0, max=1, step=0.01, value=0.5,
-                            marks={i/10: f'{i/10:.1f}' for i in range(0, 11)},
-                            tooltip={"placement": "bottom", "always_visible": True}
-                        )
-                    ], style={'width': '65%', 'display': 'inline-block', 'padding': '10px'}),
-                    
-                    html.Div([
-                        html.Label("Genetic Risk Score (0-100):", style={'fontWeight': 'bold'}),
+                            html.Label("Patient Ancestry:", style={'fontWeight': 'bold'}),
+                            dcc.Dropdown(
+                                id='ancestry-detailed',
+                                options=[{'label': f"{a} - {get_ancestry_description(a)}", 'value': a} 
+                                         for a in sorted(df['ancestry'].unique())],
+                                placeholder='Select ancestry...'
+                            )
+                        ], style={'width': '100%', 'marginBottom': '15px'}),
+                        
+                        html.H4("SES Vulnerability Parameters:", style={'marginTop': '20px', 'color': '#e67e22'}),
                         html.Div([
-                            html.Span("🟢 Normal (0-33)", style={'color': '#27ae60', 'marginRight': '20px'}),
-                            html.Span("🟡 Moderate (34-66)", style={'color': '#f39c12', 'marginRight': '20px'}),
-                            html.Span("🔴 High (67-100)", style={'color': '#e74c3c'})
-                        ], style={'marginBottom': '5px'}),
-                        dcc.Slider(
-                            id='genetic-slider',
-                            min=0, max=100, step=1, value=33,
-                            marks={i: str(i) for i in range(0, 101, 10)},
-                            tooltip={"placement": "bottom", "always_visible": True}
-                        )
-                    ], style={'width': '100%', 'padding': '10px', 'marginTop': '20px'})
+                            html.Div([
+                                html.Label("Poverty Rate (%):", style={'fontWeight': 'bold'}),
+                                dcc.Slider(id='poverty-slider', min=0, max=30, step=1, value=12,
+                                          marks={0: '0%', 10: '10%', 20: '20%', 30: '30%'},
+                                          tooltip={"always_visible": True})
+                            ], style={'marginBottom': '15px'}),
+                            html.Div([
+                                html.Label("Unemployment Rate (%):", style={'fontWeight': 'bold'}),
+                                dcc.Slider(id='unemployment-slider', min=0, max=15, step=0.5, value=5,
+                                          marks={0: '0%', 5: '5%', 10: '10%', 15: '15%'},
+                                          tooltip={"always_visible": True})
+                            ], style={'marginBottom': '15px'}),
+                            html.Div([
+                                html.Label("No High School Diploma (%):", style={'fontWeight': 'bold'}),
+                                dcc.Slider(id='education-slider', min=0, max=40, step=1, value=10,
+                                          marks={0: '0%', 10: '10%', 20: '20%', 30: '30%', 40: '40%'},
+                                          tooltip={"always_visible": True})
+                            ], style={'marginBottom': '15px'}),
+                        ]),
+                        
+                        html.H4("Genetic Risk Parameters:", style={'marginTop': '20px', 'color': '#27ae60'}),
+                        html.Div([
+                            html.Label("Number of Risk Alleles (0-20):", style={'fontWeight': 'bold'}),
+                            dcc.Slider(id='risk-alleles-slider', min=0, max=20, step=1, value=6,
+                                      marks={0: '0', 5: '5', 10: '10', 15: '15', 20: '20'},
+                                      tooltip={"always_visible": True}),
+                            html.P("Risk alleles are variants that increase drug toxicity risk (e.g., CYP2C9*2, CYP2C19*2)", 
+                                   style={'fontSize': '12px', 'color': '#666', 'marginTop': '10px'})
+                        ])
+                    ])
                 ]),
                 
                 # Risk Warning
@@ -334,7 +388,51 @@ app.layout = html.Div([
             ], style={'padding': '20px'})
         ]),
         
-        # ========== TAB 4: ABOUT ==========
+        # ========== TAB 4: SCORE CALCULATOR INFO ==========
+        dcc.Tab(label='📊 Score Calculator', children=[
+            html.Div([
+                html.H3("How Scores Are Calculated", style={'marginTop': '20px'}),
+                
+                html.Div([
+                    html.H4("🧬 Genetic Risk Score (0-100)", style={'color': '#27ae60'}),
+                    html.P("The Genetic Risk Score is calculated based on the number of risk alleles you carry:"),
+                    html.Ul([
+                        html.Li("Each risk allele increases your genetic risk score"),
+                        html.Li("Formula: Genetic Risk = (Number of Risk Alleles / 20) × 100"),
+                        html.Li("Example: 6 risk alleles = (6/20) × 100 = 30 (Normal range)"),
+                        html.Li("10 risk alleles = (10/20) × 100 = 50 (Moderate risk)"),
+                        html.Li("15 risk alleles = (15/20) × 100 = 75 (High risk)")
+                    ]),
+                    html.P("Risk alleles include variants like CYP2C9*2, CYP2C19*2, CYP2D6*4, etc.", 
+                           style={'fontStyle': 'italic'})
+                ], style={'backgroundColor': '#f0fdf4', 'padding': '15px', 'borderRadius': '10px', 'marginBottom': '20px'}),
+                
+                html.Div([
+                    html.H4("🏠 SES Vulnerability Score (0-1)", style={'color': '#e67e22'}),
+                    html.P("The SES Score is calculated from three social vulnerability factors:"),
+                    html.Ul([
+                        html.Li("Poverty Rate (% below federal poverty line)"),
+                        html.Li("Unemployment Rate"),
+                        html.Li("Education Level (% without high school diploma)")
+                    ]),
+                    html.P("Formula: SES = (Poverty% × 0.4 + Unemployment% × 0.3 + Education% × 0.3) / 100", 
+                           style={'fontFamily': 'monospace'}),
+                    html.P("Example: 15% poverty, 6% unemployment, 12% no HS diploma = (15×0.4 + 6×0.3 + 12×0.3)/100 = 0.114 (Low risk)"),
+                    html.P("Data source: CDC Social Vulnerability Index (SVI)", style={'fontStyle': 'italic'})
+                ], style={'backgroundColor': '#fff3e0', 'padding': '15px', 'borderRadius': '10px', 'marginBottom': '20px'}),
+                
+                html.Div([
+                    html.H4("📊 Equity Score (0-100)", style={'color': '#2c3e50'}),
+                    html.P("The final Equity Score combines both genetic and social factors:"),
+                    html.P("Equity Score = (Genetic Risk × 0.5) + (SES Score × 100 × 0.5)", 
+                           style={'fontFamily': 'monospace', 'fontWeight': 'bold'}),
+                    html.P("This balanced score identifies patients at highest risk for adverse drug reactions."),
+                    html.P("Risk categories: 0-25 Low, 25-50 Moderate, 50-75 High, 75-100 Very High")
+                ], style={'backgroundColor': '#e8f4f8', 'padding': '15px', 'borderRadius': '10px'})
+            ], style={'padding': '20px'})
+        ]),
+        
+        # ========== TAB 5: ABOUT ==========
         dcc.Tab(label='ℹ️ About', children=[
             html.Div([
                 html.H3("About the Pharmacogenomic Equity Atlas", style={'marginTop': '20px'}),
@@ -345,9 +443,10 @@ app.layout = html.Div([
                 
                 html.H4("📊 How to Use", style={'marginTop': '15px'}),
                 html.Ol([
+                    html.Li("Select Quick Mode for simple slider input or Detailed Mode to enter specific parameters"),
                     html.Li("Select patient ancestry"),
-                    html.Li("Adjust SES vulnerability based on neighborhood"),
-                    html.Li("Adjust genetic risk based on testing results"),
+                    html.Li("Adjust SES vulnerability based on neighborhood or enter specific metrics"),
+                    html.Li("Adjust genetic risk based on testing results or enter number of risk alleles"),
                     html.Li("Review personalized drug recommendations"),
                     html.Li("Generate patient report for documentation")
                 ]),
@@ -381,9 +480,44 @@ app.layout = html.Div([
 # ============================================================
 # 5. CALLBACKS
 # ============================================================
-print("\n[4/4] Defining callbacks...")
+print("\n[4/5] Defining callbacks...")
 
-# Calculator callback
+# Toggle between quick and detailed mode
+@app.callback(
+    [Output('quick-inputs', 'style'),
+     Output('detailed-inputs', 'style')],
+    Input('input-mode', 'value')
+)
+def toggle_mode(mode):
+    if mode == 'quick':
+        return {'display': 'block'}, {'display': 'none'}
+    else:
+        return {'display': 'none'}, {'display': 'block'}
+
+# Get values from either quick or detailed mode
+@app.callback(
+    [Output('ancestry-input', 'value'),
+     Output('ses-slider', 'value'),
+     Output('genetic-slider', 'value')],
+    [Input('ancestry-detailed', 'value'),
+     Input('poverty-slider', 'value'),
+     Input('unemployment-slider', 'value'),
+     Input('education-slider', 'value'),
+     Input('risk-alleles-slider', 'value')]
+)
+def sync_detailed_to_quick(ancestry_detailed, poverty, unemployment, education, risk_alleles):
+    # Calculate SES score from detailed parameters
+    if poverty is not None and unemployment is not None and education is not None:
+        ses_score = calculate_ses_risk(poverty, unemployment, education) / 100
+    else:
+        ses_score = 0.5
+    
+    # Calculate genetic risk from allele count
+    genetic_risk = calculate_genetic_risk(risk_alleles if risk_alleles else 0, 20)
+    
+    return ancestry_detailed, ses_score, genetic_risk
+
+# Main calculator callback
 @app.callback(
     Output('calculator-results', 'children'),
     Output('risk-warning', 'children'),
@@ -612,7 +746,7 @@ def generate_report(n_clicks, ancestry, ses_score, genetic_risk):
                 <tr><td>SES Vulnerability</td><td>{ses_score:.2f} / 1.00</td></tr>
                 <tr><td>Genetic Risk</td><td>{genetic_risk:.0f} / 100</td></tr>
                 <tr><td>Equity Score</td><td>{equity_score:.1f} / 100</td></tr>
-                <tr><td style='font-weight:bold'>Risk Level</td><td style='color:{risk_color}; font-weight:bold'>{risk_level}</td></tr>
+                <tr><td>Risk Level</td><td style='color:{risk_color}; font-weight:bold'>{risk_level}</td></tr>
             </table>
         </div>
         
@@ -654,11 +788,14 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8050))
     print(f"\n🌐 Server running at http://localhost:{port}")
     print("📊 Features:")
-    print("   • Clinical calculator with continuous sliders")
+    print("   • Clinical calculator with Quick and Detailed modes")
+    print("   • SES score calculation from poverty, unemployment, education")
+    print("   • Genetic risk calculation from risk allele count")
     print("   • Drug search by name or gene")
     print("   • Risk warnings for high-risk profiles")
-    print("   • Patient report generation")
+    print("   • Patient report generation (downloadable HTML)")
     print("   • Disparity visualizations")
+    print("   • Score calculator explanation tab")
     print("\n💡 Press Ctrl+C to stop the server")
     
     app.run(host='0.0.0.0', port=port, debug=False)
