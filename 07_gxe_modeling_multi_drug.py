@@ -1,5 +1,5 @@
 # 07_gxe_modeling_multi_drug.py
-# Step 4 - Multi-Drug GxE Interaction Modeling
+# Step 4 - Multi-Drug GxE Interaction Modeling (Uses central drug config)
 
 import pandas as pd
 import numpy as np
@@ -7,6 +7,7 @@ import statsmodels.api as sm
 from statsmodels.formula.api import logit
 from scipy import stats
 import matplotlib.pyplot as plt
+from drug_config import DRUG_DATABASE, get_drug_list, get_gxe_params
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -14,89 +15,18 @@ print("="*60)
 print("STEP 4: Multi-Drug GxE Interaction Modeling")
 print("="*60)
 
-# Define drug-specific parameters
-DRUG_PARAMETERS = {
-    'Warfarin': {
-        'gene': 'CYP2C9',
-        'base_risk': 0.05,
-        'genetic_effect': 0.15,
-        'ses_effect': 0.20,
-        'gxe_effect': 0.25,
-        'clinical_action': 'Dose adjustment needed'
-    },
-    'Clopidogrel': {
-        'gene': 'CYP2C19',
-        'base_risk': 0.08,
-        'genetic_effect': 0.20,
-        'ses_effect': 0.15,
-        'gxe_effect': 0.30,
-        'clinical_action': 'Alternative therapy recommended'
-    },
-    'Simvastatin': {
-        'gene': 'SLCO1B1',
-        'base_risk': 0.03,
-        'genetic_effect': 0.25,
-        'ses_effect': 0.10,
-        'gxe_effect': 0.20,
-        'clinical_action': 'Consider alternative statin'
-    },
-    'Fluorouracil': {
-        'gene': 'DPYD',
-        'base_risk': 0.12,
-        'genetic_effect': 0.35,
-        'ses_effect': 0.25,
-        'gxe_effect': 0.40,
-        'clinical_action': 'Dose reduction required'
-    },
-    'Codeine': {
-        'gene': 'CYP2D6',
-        'base_risk': 0.10,
-        'genetic_effect': 0.30,
-        'ses_effect': 0.18,
-        'gxe_effect': 0.35,
-        'clinical_action': 'Avoid in poor metabolizers'
-    },
-    'Tamoxifen': {
-        'gene': 'CYP2D6',
-        'base_risk': 0.06,
-        'genetic_effect': 0.22,
-        'ses_effect': 0.12,
-        'gxe_effect': 0.28,
-        'clinical_action': 'Consider aromatase inhibitor'
-    },
-    'Phenytoin': {
-        'gene': 'CYP2C9',
-        'base_risk': 0.09,
-        'genetic_effect': 0.18,
-        'ses_effect': 0.22,
-        'gxe_effect': 0.32,
-        'clinical_action': 'Monitor levels closely'
-    },
-    'Atorvastatin': {
-        'gene': 'SLCO1B1',
-        'base_risk': 0.02,
-        'genetic_effect': 0.20,
-        'ses_effect': 0.08,
-        'gxe_effect': 0.18,
-        'clinical_action': 'Use pravastatin instead'
-    },
-    'Capecitabine': {
-        'gene': 'DPYD',
-        'base_risk': 0.15,
-        'genetic_effect': 0.40,
-        'ses_effect': 0.28,
-        'gxe_effect': 0.45,
-        'clinical_action': 'Significant dose reduction'
-    }
-}
-
-print(f"\n[1/6] Analyzing {len(DRUG_PARAMETERS)} drugs for GxE interactions...")
+# Get drugs from central config
+drugs_to_analyze = get_drug_list()
+print(f"\n[1/5] Analyzing {len(drugs_to_analyze)} drugs from central config...")
 
 # Store results for all drugs
 all_results = []
 
-for drug_name, params in DRUG_PARAMETERS.items():
-    print(f"\n  Analyzing {drug_name} ({params['gene']})...")
+for drug_name in drugs_to_analyze:
+    params = get_gxe_params(drug_name)
+    gene = DRUG_DATABASE[drug_name]['gene']
+    
+    print(f"\n  Analyzing {drug_name} ({gene})...")
     
     # Generate data for this drug
     np.random.seed(42)
@@ -128,13 +58,13 @@ for drug_name, params in DRUG_PARAMETERS.items():
     # Store results
     all_results.append({
         'drug': drug_name,
-        'gene': params['gene'],
+        'gene': gene,
         'main_genotype_effect': model_main.params['genotype'],
         'main_genotype_p': model_main.pvalues['genotype'],
         'gxe_interaction': model_interaction.params['genotype:ses_score'],
         'gxe_pvalue': model_interaction.pvalues['genotype:ses_score'],
         'significant_gxe': model_interaction.pvalues['genotype:ses_score'] < 0.05,
-        'clinical_action': params['clinical_action']
+        'clinical_action': DRUG_DATABASE[drug_name].get('high_risk', 'Monitor closely')[:50]
     })
 
 # Create results dataframe
@@ -144,7 +74,7 @@ results_df = results_df.sort_values('gxe_pvalue')
 print("\n" + "="*60)
 print("GxE INTERACTION RESULTS BY DRUG")
 print("="*60)
-print(results_df[['drug', 'gene', 'gxe_interaction', 'gxe_pvalue', 'significant_gxe', 'clinical_action']].to_string(index=False))
+print(results_df[['drug', 'gene', 'gxe_interaction', 'gxe_pvalue', 'significant_gxe']].to_string(index=False))
 
 # Identify drugs with significant GxE
 significant_drugs = results_df[results_df['significant_gxe']]
@@ -153,18 +83,13 @@ if len(significant_drugs) > 0:
     for _, row in significant_drugs.iterrows():
         print(f"   • {row['drug']}: p={row['gxe_pvalue']:.4f}")
 
-# Create visualization
+# Create visualization (max 9 drugs)
+n_plots = min(len(drugs_to_analyze), 9)
 fig, axes = plt.subplots(3, 3, figsize=(15, 12))
 axes = axes.flatten()
 
-for idx, drug_name in enumerate(DRUG_PARAMETERS.keys()):
-    if idx >= 9:
-        break
-    
-    # Get drug parameters
-    params = DRUG_PARAMETERS[drug_name]
-    
-    # Generate data for plotting
+for idx, drug_name in enumerate(drugs_to_analyze[:9]):
+    params = get_gxe_params(drug_name)
     ses_grid = np.linspace(0, 1, 50)
     
     for genotype in [0, 1, 2]:
@@ -177,11 +102,15 @@ for idx, drug_name in enumerate(DRUG_PARAMETERS.keys()):
                       label=f'{genotype} alt alleles', 
                       linewidth=2)
     
-    axes[idx].set_title(f'{drug_name} ({params["gene"]})')
+    axes[idx].set_title(f'{drug_name} ({DRUG_DATABASE[drug_name]["gene"]})')
     axes[idx].set_xlabel('SES Score')
     axes[idx].set_ylabel('Toxicity Probability')
     axes[idx].legend(fontsize=8)
     axes[idx].grid(True, alpha=0.3)
+
+# Hide unused subplots
+for idx in range(len(drugs_to_analyze[:9]), 9):
+    axes[idx].set_visible(False)
 
 plt.tight_layout()
 plt.savefig('data/processed/multi_drug_gxe_plot.png', dpi=150)
