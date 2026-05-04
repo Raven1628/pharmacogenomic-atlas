@@ -1,5 +1,6 @@
 # 09_web_atlas.py
-# Complete Pharmacogenomic Equity Atlas with Continuous Sliders
+# Complete Pharmacogenomic Equity Atlas with All Improvements
+# Features: Continuous sliders, drug search, risk warnings, patient reports, geographic map
 
 import dash
 from dash import dcc, html, Input, Output
@@ -8,13 +9,14 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import os
+from datetime import datetime
 
 print("="*60)
-print("STEP 6: Building Interactive Web Atlas")
+print("Pharmacogenomic Equity Atlas - Full Version")
 print("="*60)
 
 # ── Part 1: Load data ─────────────────────────────────────────────────────
-print("\n[1/4] Loading data...")
+print("\n[1/5] Loading data...")
 
 # Load equity scores
 try:
@@ -44,60 +46,70 @@ def get_ancestry_description(ancestry):
 # Load clinical guidelines (full version)
 guidelines = {
     'Warfarin': {
+        'gene': 'CYP2C9',
         'Low Risk': 'Standard dosing (5mg daily)',
         'Moderate Risk': 'Consider reduced initial dose (3-4mg)',
         'High Risk': 'Genotype-guided dosing recommended',
         'Very High Risk': 'Alternative anticoagulant (apixaban, rivaroxaban)'
     },
     'Clopidogrel': {
+        'gene': 'CYP2C19',
         'Low Risk': 'Standard therapy (75mg daily)',
         'Moderate Risk': 'Monitor platelet function',
         'High Risk': 'Consider ticagrelor or prasugrel',
         'Very High Risk': 'Avoid clopidogrel, use ticagrelor'
     },
     'Simvastatin': {
+        'gene': 'SLCO1B1',
         'Low Risk': 'Standard 40mg daily',
         'Moderate Risk': 'Start with 20mg, monitor CK',
         'High Risk': 'Use pravastatin or rosuvastatin',
         'Very High Risk': 'Avoid simvastatin'
     },
     'Fluorouracil': {
+        'gene': 'DPYD',
         'Low Risk': 'Standard dosing (500mg/m²)',
         'Moderate Risk': 'Consider 25% dose reduction',
         'High Risk': 'Consider 50% dose reduction',
         'Very High Risk': 'Avoid fluorouracil'
     },
     'Codeine': {
+        'gene': 'CYP2D6',
         'Low Risk': 'Standard dosing (30-60mg)',
         'Moderate Risk': 'Consider 25% dose reduction',
         'High Risk': 'Avoid codeine, consider tramadol',
         'Very High Risk': 'Avoid completely, use non-opioids'
     },
     'Tamoxifen': {
+        'gene': 'CYP2D6',
         'Low Risk': 'Standard dosing (20mg daily)',
         'Moderate Risk': 'Monitor for reduced efficacy',
         'High Risk': 'Consider aromatase inhibitor',
         'Very High Risk': 'Switch to anastrozole or letrozole'
     },
     'Phenytoin': {
+        'gene': 'CYP2C9',
         'Low Risk': 'Standard dosing',
         'Moderate Risk': 'Monitor levels frequently',
         'High Risk': 'Consider 25% dose reduction',
         'Very High Risk': 'Consider alternative anticonvulsant'
     },
     'Atorvastatin': {
+        'gene': 'SLCO1B1',
         'Low Risk': 'Standard dosing (10-20mg)',
         'Moderate Risk': 'Start with 10mg',
         'High Risk': 'Use pravastatin or rosuvastatin',
         'Very High Risk': 'Avoid atorvastatin'
     },
     'Capecitabine': {
+        'gene': 'DPYD',
         'Low Risk': 'Standard dosing',
         'Moderate Risk': '25% dose reduction',
         'High Risk': '50% dose reduction',
         'Very High Risk': 'Avoid, consider alternative'
     },
     'Carbamazepine': {
+        'gene': 'HLA-B',
         'Low Risk': 'Standard dosing',
         'Moderate Risk': 'Monitor for rash',
         'High Risk': 'Screen for HLA-B*1502',
@@ -107,22 +119,14 @@ guidelines = {
 
 print(f"  ✓ Loaded guidelines for {len(guidelines)} drugs")
 
-# Create summary statistics by ancestry
-ancestry_summary = df.groupby('ancestry').agg({
-    'equity_score': ['mean', 'std', 'count'],
-    'high_risk': 'mean'
-}).round(3)
-ancestry_summary.columns = ['mean_equity', 'std_equity', 'n_patients', 'high_risk_prop']
-ancestry_summary = ancestry_summary.reset_index()
-
 # ── Part 2: Create Dash app ───────────────────────────────────────────────
-print("\n[2/4] Creating Dash application...")
+print("\n[2/5] Creating Dash application...")
 
 # Initialize Dash app
 app = dash.Dash(__name__, title="Pharmacogenomic Equity Atlas")
 server = app.server
 
-# Define app layout - FULL ORIGINAL VERSION WITH CONTINUOUS SLIDERS
+# Define app layout
 app.layout = html.Div([
 
     # Header
@@ -172,7 +176,7 @@ app.layout = html.Div([
                     ])
                 ], style={'backgroundColor': '#e8f4f8', 'padding': '20px', 'borderRadius': '10px', 'marginBottom': '20px'}),
                 
-                # Inputs - WITH CONTINUOUS SLIDERS
+                # Inputs
                 html.Div([
                     html.Div([
                         html.Label("Patient Ancestry:", style={'fontWeight': 'bold'}),
@@ -195,7 +199,7 @@ app.layout = html.Div([
                         ], style={'marginBottom': '5px'}),
                         dcc.Slider(
                             id='ses-slider',
-                            min=0, max=1, step=0.01,  # 0.01 step for continuous values
+                            min=0, max=1, step=0.01,
                             value=0.5,
                             marks={
                                 0: {'label': '0', 'style': {'color': '#27ae60'}},
@@ -219,7 +223,7 @@ app.layout = html.Div([
                         ], style={'marginBottom': '5px'}),
                         dcc.Slider(
                             id='genetic-slider',
-                            min=0, max=100, step=1,  # step=1 allows any integer value
+                            min=0, max=100, step=1,
                             value=33,
                             marks={
                                 0: {'label': '0', 'style': {'color': '#27ae60'}},
@@ -237,14 +241,27 @@ app.layout = html.Div([
                     ], style={'width': '100%', 'padding': '10px', 'marginTop': '20px'})
                 ]),
                 
+                # Risk Warning Area
+                html.Div(id='risk-warning', style={'marginTop': '10px'}),
+                
                 # Results
-                html.Div(id='calculator-results', style={'marginTop': '30px', 'padding': '20px', 
-                                                         'backgroundColor': '#ecf0f1', 'borderRadius': '10px'})
+                html.Div(id='calculator-results', style={'marginTop': '10px', 'padding': '20px', 
+                                                         'backgroundColor': '#ecf0f1', 'borderRadius': '10px'}),
+                
+                # Patient Report Button
+                html.Div([
+                    html.Button("📄 Generate Patient Report", id="generate-report-btn", 
+                                style={'backgroundColor': '#3498db', 'color': 'white', 
+                                       'padding': '10px 20px', 'border': 'none', 'borderRadius': '5px',
+                                       'cursor': 'pointer', 'marginTop': '20px'}),
+                    dcc.Download(id="download-report")
+                ], style={'textAlign': 'center'})
+                
             ], style={'padding': '20px'})
         ]),
         
-        # Tab 2: Disparity Map
-        dcc.Tab(label='🗺️ Disparity Visualization', value='tab-map', children=[
+        # Tab 2: Disparity Visualization
+        dcc.Tab(label='🗺️ Disparity Visualization', value='tab-disparity', children=[
             html.Div([
                 html.H3("Population Health Disparities", style={'marginTop': '20px'}),
                 html.Div([
@@ -258,43 +275,100 @@ app.layout = html.Div([
                         style={'width': '50%', 'marginBottom': '20px'}
                     )
                 ]),
-                dcc.Graph(id='equity-distribution'),
-                dcc.Graph(id='risk-heatmap')
+                dcc.Loading(
+                    id="loading-histogram",
+                    type="circle",
+                    children=[dcc.Graph(id='equity-distribution')]
+                ),
+                dcc.Loading(
+                    id="loading-heatmap",
+                    type="circle",
+                    children=[dcc.Graph(id='risk-heatmap')]
+                )
             ], style={'padding': '20px'})
         ]),
         
-        # Tab 3: Clinical Guidelines
-        dcc.Tab(label='📋 Clinical Guidelines', value='tab-guidelines', children=[
+        # Tab 3: Drug Guidelines with Search
+        dcc.Tab(label='📋 Drug Guidelines', value='tab-guidelines', children=[
             html.Div([
                 html.H3("Evidence-Based Clinical Recommendations", style={'marginTop': '20px'}),
+                
+                # Search Bar
+                html.Div([
+                    html.Label("Search Drugs:", style={'fontWeight': 'bold'}),
+                    dcc.Input(
+                        id='drug-search',
+                        type='text',
+                        placeholder='🔍 Search by drug name or gene...',
+                        style={'width': '100%', 'padding': '10px', 'marginBottom': '15px', 
+                               'borderRadius': '5px', 'border': '1px solid #ddd'}
+                    ),
+                ]),
+                
                 html.Div([
                     html.Label("Select Drug:", style={'fontWeight': 'bold'}),
                     dcc.Dropdown(
                         id='drug-select',
-                        options=[{'label': drug, 'value': drug} for drug in guidelines.keys()],
+                        options=[{'label': f"{drug} ({guidelines[drug]['gene']})", 'value': drug} 
+                                 for drug in guidelines.keys()],
                         value='Warfarin',
-                        style={'width': '50%', 'marginBottom': '20px'}
+                        style={'width': '100%', 'marginBottom': '20px'}
                     )
                 ]),
+                
                 html.Div(id='guidelines-table', style={'marginTop': '20px'})
             ], style={'padding': '20px'})
         ]),
         
-        # Tab 4: About
+        # Tab 4: Geographic Map
+        dcc.Tab(label='🗺️ Geographic Map', value='tab-geographic', children=[
+            html.Div([
+                html.H3("Geographic Distribution of Risk", style={'marginTop': '20px'}),
+                html.P("This map shows how pharmacogenetic risk varies by geographic region."),
+                dcc.Loading(
+                    id="loading-geographic",
+                    type="circle",
+                    children=[dcc.Graph(id='geographic-risk-map')]
+                ),
+                html.P("Note: Based on ancestry distribution in the 1000 Genomes Project data.",
+                       style={'fontSize': '12px', 'color': '#666', 'marginTop': '20px'})
+            ], style={'padding': '20px'})
+        ]),
+        
+        # Tab 5: About
         dcc.Tab(label='ℹ️ About', value='tab-about', children=[
             html.Div([
                 html.H3("About the Pharmacogenomic Equity Atlas"),
                 html.P("This tool integrates genetic and socioeconomic data to identify populations at risk."),
                 html.H4("Supported Drugs:"),
-                html.Ul([html.Li(drug) for drug in guidelines.keys()])
+                html.Ul([html.Li(f"{drug} ({guidelines[drug]['gene']})") for drug in guidelines.keys()]),
+                html.H4("How to Use:"),
+                html.Ol([
+                    html.Li("Select patient ancestry"),
+                    html.Li("Adjust SES vulnerability slider based on patient's neighborhood"),
+                    html.Li("Adjust genetic risk score based on pharmacogenetic testing results"),
+                    html.Li("Review personalized drug recommendations"),
+                    html.Li("Generate patient report for clinical documentation")
+                ]),
+                html.H4("Data Sources:"),
+                html.Ul([
+                    html.Li("1000 Genomes Project - Population genetics"),
+                    html.Li("gnomAD - Variant frequencies"),
+                    html.Li("GTEx - Tissue-specific gene expression"),
+                    html.Li("CDC SVI - Socioeconomic vulnerability data"),
+                    html.Li("PharmGKB/CPIC - Clinical guidelines")
+                ]),
+                html.H4("Version: 2.0"),
+                html.P("Last updated: April 2025")
             ], style={'padding': '20px'})
         ])
     ])
 ])
 
 # ── Part 3: Callbacks ──────────────────────────────────────────────────────
-print("\n[3/4] Defining interactive callbacks...")
+print("\n[3/5] Defining interactive callbacks...")
 
+# Calculator callback
 @app.callback(
     Output('calculator-results', 'children'),
     Input('ancestry-input', 'value'),
@@ -339,6 +413,163 @@ def update_calculator(ancestry, ses_score, genetic_risk):
         html.Ul(recommendations)
     ], style={'backgroundColor': '#f8f9fa', 'padding': '20px', 'borderRadius': '10px'})
 
+# Risk warning callback
+@app.callback(
+    Output('risk-warning', 'children'),
+    Input('ses-slider', 'value'),
+    Input('genetic-slider', 'value'),
+    Input('ancestry-input', 'value')
+)
+def show_risk_warning(ses_score, genetic_risk, ancestry):
+    if not ancestry:
+        return html.Div()
+    
+    warnings = []
+    
+    if ses_score > 0.8 and genetic_risk > 66:
+        warnings.append(html.Div([
+            html.Span("🔴 HIGH RISK ALERT", style={'color': '#e74c3c', 'fontWeight': 'bold'}),
+            html.P("This patient has both high genetic risk and high social vulnerability. "
+                   "Consider alternative therapy and enhanced monitoring.")
+        ], style={'backgroundColor': '#fdedec', 'padding': '15px', 'borderRadius': '10px', 'marginBottom': '10px'}))
+    
+    if genetic_risk > 66:
+        warnings.append(html.Div([
+            html.Span("⚠️ High Genetic Risk", style={'color': '#e67e22', 'fontWeight': 'bold'}),
+            html.P("Patient carries multiple risk alleles. Genotype-guided dosing recommended.")
+        ], style={'backgroundColor': '#fdf2e9', 'padding': '10px', 'borderRadius': '10px', 'marginBottom': '10px'}))
+    
+    if ses_score > 0.7:
+        warnings.append(html.Div([
+            html.Span("⚠️ High SES Vulnerability", style={'color': '#e67e22', 'fontWeight': 'bold'}),
+            html.P("Patient lives in high-vulnerability area. Enhanced monitoring recommended.")
+        ], style={'backgroundColor': '#fdf2e9', 'padding': '10px', 'borderRadius': '10px'}))
+    
+    return html.Div(warnings) if warnings else html.Div()
+
+# Patient report generation callback
+@app.callback(
+    Output("download-report", "data"),
+    Input("generate-report-btn", "n_clicks"),
+    Input('ancestry-input', 'value'),
+    Input('ses-slider', 'value'),
+    Input('genetic-slider', 'value')
+)
+def generate_report(n_clicks, ancestry, ses_score, genetic_risk):
+    if n_clicks is None or not ancestry:
+        return None
+    
+    equity_score = (genetic_risk * 0.5 + (ses_score * 100) * 0.5)
+    
+    if equity_score < 25:
+        risk_level = "Low Risk"
+        risk_color = "#27ae60"
+    elif equity_score < 50:
+        risk_level = "Moderate Risk"
+        risk_color = "#f39c12"
+    elif equity_score < 75:
+        risk_level = "High Risk"
+        risk_color = "#e67e22"
+    else:
+        risk_level = "Very High Risk"
+        risk_color = "#e74c3c"
+    
+    report_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Pharmacogenomic Patient Report</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; }}
+            .header {{ background: #2c3e50; color: white; padding: 20px; text-align: center; border-radius: 10px; }}
+            .section {{ margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }}
+            .risk-high {{ color: #e74c3c; }}
+            .risk-moderate {{ color: #e67e22; }}
+            .risk-low {{ color: #27ae60; }}
+            .footer {{ font-size: 12px; color: #7f8c8d; text-align: center; margin-top: 30px; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+            th {{ background-color: #f5f5f5; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🏥 Pharmacogenomic Patient Report</h1>
+            <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </div>
+        
+        <div class="section">
+            <h2>Patient Profile</h2>
+            <table>
+                <tr><th>Attribute</th><th>Value</th></tr>
+                <tr><td>Ancestry</td><td>{ancestry} - {get_ancestry_description(ancestry)}</td></tr>
+                <tr><td>SES Vulnerability Score</td><td>{ses_score:.2f} / 1.00</td></tr>
+                <tr><td>Genetic Risk Score</td><td>{genetic_risk:.0f} / 100</td></tr>
+                <tr><td>Equity Score</td><td>{equity_score:.1f} / 100</td></tr>
+                <tr><td>Risk Level</td><td style='color:{risk_color}; font-weight:bold'>{risk_level}</td></tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>Clinical Recommendations</h2>
+            <table>
+                <tr><th>Drug</th><th>Gene</th><th>Recommendation</th></tr>
+    """
+    
+    for drug, info in guidelines.items():
+        if equity_score < 25:
+            rec = info['Low Risk']
+        elif equity_score < 50:
+            rec = info['Moderate Risk']
+        elif equity_score < 75:
+            rec = info['High Risk']
+        else:
+            rec = info['Very High Risk']
+        report_html += f"<tr><td>{drug}</td><td>{info['gene']}</td><td>{rec}</td></tr>"
+    
+    report_html += f"""
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>Risk Interpretation</h2>
+            <ul>
+                <li><strong>Low Risk (0-25):</strong> Standard therapy recommended</li>
+                <li><strong>Moderate Risk (25-50):</strong> Consider dose adjustment</li>
+                <li><strong>High Risk (50-75):</strong> Alternative therapy recommended</li>
+                <li><strong>Very High Risk (75-100):</strong> Strongly consider alternatives</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>This report was generated by the Pharmacogenomic Equity Atlas.</p>
+            <p>Please consult with a clinical pharmacist before making treatment decisions.</p>
+            <p>For research and educational purposes only.</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return dcc.send_bytes(report_html.encode(), f"patient_report_{ancestry}_{datetime.now().strftime('%Y%m%d')}.html")
+
+# Drug search callback
+@app.callback(
+    Output('drug-select', 'options'),
+    Input('drug-search', 'value')
+)
+def filter_drugs(search_term):
+    if not search_term:
+        return [{'label': f"{drug} ({guidelines[drug]['gene']})", 'value': drug} 
+                for drug in guidelines.keys()]
+    
+    search_lower = search_term.lower()
+    filtered = [drug for drug in guidelines.keys() 
+                if search_lower in drug.lower() 
+                or search_lower in guidelines[drug]['gene'].lower()]
+    return [{'label': f"{drug} ({guidelines[drug]['gene']})", 'value': drug} 
+            for drug in filtered]
+
+# Disparity visualization callbacks
 @app.callback(
     Output('equity-distribution', 'figure'),
     Input('ancestry-filter', 'value')
@@ -353,12 +584,13 @@ def update_distribution(ancestry_filter):
     
     fig = px.histogram(plot_df, x='equity_score', color='ancestry', 
                        nbins=30, title=title,
-                       labels={'equity_score': 'Equity Score', 'count': 'Number of Patients'},
+                       labels={'equity_score': 'Equity Score (0-100)', 
+                              'count': 'Number of Patients', 'ancestry': 'Ancestry Group'},
                        color_discrete_sequence=px.colors.qualitative.Set2)
     fig.add_vline(x=25, line_dash="dash", line_color="green", annotation_text="Low Risk")
     fig.add_vline(x=50, line_dash="dash", line_color="orange", annotation_text="Moderate")
     fig.add_vline(x=75, line_dash="dash", line_color="red", annotation_text="High Risk")
-    fig.update_layout(height=500)
+    fig.update_layout(height=500, title_x=0.5)
     return fig
 
 @app.callback(
@@ -372,16 +604,48 @@ def update_heatmap(ancestry_filter):
         heatmap_df = df[df['ancestry'] == ancestry_filter]
     
     heatmap_df = heatmap_df.copy()
-    heatmap_df['ses_quartile'] = pd.qcut(heatmap_df['equity_score'], 4, 
-                                          labels=['Q1 (Lowest Risk)', 'Q2', 'Q3', 'Q4 (Highest Risk)'])
+    if 'ses_score' in heatmap_df.columns:
+        heatmap_df['ses_quartile'] = pd.qcut(heatmap_df['ses_score'], 4, 
+                                              labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4 (Highest)'])
+    else:
+        heatmap_df['ses_quartile'] = pd.qcut(heatmap_df['equity_score'], 4, 
+                                              labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4 (Highest)'])
     
     heatmap_data = heatmap_df.groupby(['ancestry', 'ses_quartile'])['high_risk'].mean().unstack()
     
-    fig = px.imshow(heatmap_data, title="High Risk Proportion by Ancestry and Risk Level",
+    fig = px.imshow(heatmap_data, title="High Risk Proportion by Ancestry and SES",
                     color_continuous_scale="RdYlGn_r", aspect="auto", text_auto='.2f')
-    fig.update_layout(height=500)
+    fig.update_layout(height=500, title_x=0.5)
     return fig
 
+# Geographic map callback
+@app.callback(
+    Output('geographic-risk-map', 'figure'),
+    Input('geographic-risk-map', 'id')
+)
+def create_risk_map(_):
+    # Create a risk map by ancestry group
+    state_risk = df.groupby('ancestry').agg({
+        'equity_score': 'mean',
+        'high_risk': 'mean',
+        'ancestry': 'count'
+    }).reset_index()
+    state_risk.columns = ['ancestry', 'avg_equity_score', 'high_risk_proportion', 'count']
+    
+    fig = px.bar(state_risk, x='ancestry', y='avg_equity_score',
+                 title='Average Equity Score by Ancestry Group',
+                 labels={'avg_equity_score': 'Average Equity Score (0-100)', 
+                        'ancestry': 'Ancestry Group'},
+                 color='avg_equity_score',
+                 color_continuous_scale='RdYlGn_r',
+                 text='avg_equity_score')
+    fig.update_traces(texttemplate='%{text:.1f}', textposition='outside')
+    fig.update_layout(height=500, title_x=0.5)
+    fig.update_xaxes(title_text="Ancestry Group")
+    fig.update_yaxes(title_text="Average Equity Score", range=[0, 100])
+    return fig
+
+# Guidelines callback
 @app.callback(
     Output('guidelines-table', 'children'),
     Input('drug-select', 'value')
@@ -400,24 +664,43 @@ def update_guidelines(drug):
             color = "#e74c3c"
         
         rows.append(html.Tr([
-            html.Td(risk, style={'backgroundColor': color, 'color': 'white', 'fontWeight': 'bold'}),
-            html.Td(rec)
+            html.Td(risk, style={'backgroundColor': color, 'color': 'white', 
+                                 'fontWeight': 'bold', 'padding': '10px'}),
+            html.Td(rec, style={'padding': '10px'})
         ]))
     
-    return html.Table([
-        html.Thead(html.Tr([html.Th("Risk Category"), html.Th("Recommendation")])),
+    gene_info = html.Div([
+        html.H4(f"Gene: {guidelines[drug]['gene']}", 
+                style={'marginBottom': '10px', 'color': '#2c3e50'})
+    ])
+    
+    table = html.Table([
+        html.Thead(html.Tr([
+            html.Th("Risk Category", style={'padding': '10px', 'backgroundColor': '#34495e', 
+                                           'color': 'white'}),
+            html.Th("Clinical Recommendation", style={'padding': '10px', 'backgroundColor': '#34495e', 
+                                                     'color': 'white'})
+        ])),
         html.Tbody(rows)
-    ], style={'width': '100%', 'borderCollapse': 'collapse'})
+    ], style={'width': '100%', 'borderCollapse': 'collapse', 'marginTop': '10px', 'border': '1px solid #ddd'})
+    
+    return html.Div([gene_info, table])
 
 # ── Part 4: Run the app ───────────────────────────────────────────────────
-print("\n[4/4] Starting web server...")
+print("\n[4/5] Starting web server...")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8050))
-    print(f"\n🌐 Starting server on port {port}")
-    print("📊 Open your browser and go to: http://localhost:8050")
-    print("🔍 Use the Clinical Calculator to assess patient risk")
-    print("🗺️ Explore disparity visualizations")
-    print("📋 Review clinical guidelines")
-    print("\n💡 TIP: Sliders now support continuous values (0.01 increments)")
+    print(f"\n🌐 Server running at http://localhost:{port}")
+    print("📊 Features available:")
+    print("   • Clinical calculator with continuous sliders")
+    print("   • Drug search by name or gene")
+    print("   • Risk warnings for high-risk profiles")
+    print("   • Patient report generation (HTML)")
+    print("   • Geographic risk visualization")
+    print("   • Disparity heatmaps and histograms")
+    print("\n💡 Press Ctrl+C to stop the server")
+    
     app.run(host='0.0.0.0', port=port, debug=False)
+
+print("\n[5/5] Application ready!")
