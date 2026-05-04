@@ -1,0 +1,13 @@
+Drug,Gene,Variant,Population Allele Frequency,Clinical Action,FDA Label Section
+Abacavir,HLA-B,HLA-B*57:01,"5-8% European, 2-4% African",Screen before use; contraindicated if positive,"Boxed Warning, Contraindications"
+Carbamazepine,HLA-B,HLA-B*15:02,"10-15% Asian, <1% European/African",Screen in at-risk populations; avoid if positive,"Boxed Warning, Warnings"
+Allopurinol,HLA-B,HLA-B*58:01,"6-8% Asian, 2-4% African",Screen in high-risk populations,Warnings and Precautions
+Clopidogrel,CYP2C19,CYP2C19*2/*3,"15-25% European, 30-40% Asian",Consider alternative therapy in poor metabolizers,Dosage and Administration
+Warfarin,CYP2C9/VKORC1,"CYP2C9*2/*3, VKORC1","10-20% European, 5-10% African",Use genotype-guided initial dosing,Dosage and Administration
+Codeine,CYP2D6,CYP2D6 ultrarapid,"1-10% European, 10-20% African",Contraindicated in children; avoid in ultrarapid metabolizers,"Boxed Warning, Contraindications"
+Fluorouracil,DPYD,DPYD*2A,"2-3% European, <1% Asian/African",Consider dose reduction in intermediate metabolizers,Dosage and Administration
+Simvastatin,SLCO1B1,SLCO1B1*5,"15-20% European, 10-15% Asian",Consider lower dose or alternative statin,Dosage and Administration
+Tamoxifen,CYP2D6,CYP2D6 poor metabolizer,"5-10% European, 1-2% Asian",Consider alternative hormonal therapy,Clinical Pharmacology
+Celecoxib,CYP2C9,CYP2C9*3,"5-10% European, 1-2% Asian",Consider dose reduction in poor metabolizers,Clinical Pharmacology
+Risperidone,CYP2D6,CYP2D6 poor metabolizer,5-10% European,Consider dose reduction,Dosage and Administration
+Metoprolol,CYP2D6,CYP2D6 poor metabolizer,5-10% European,Consider dose reduction,Clinical Pharmacology

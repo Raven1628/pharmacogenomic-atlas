@@ -1,0 +1,13 @@
+drug,fda_has_pgx,fda_sections
+Warfarin,True,"['spl_product_data_elements', 'boxed_warning', 'indications_and_usage', 'dosage_and_administration', 'dosage_and_administration_table']"
+Clopidogrel,True,"['spl_product_data_elements', 'boxed_warning', 'indications_and_usage', 'dosage_and_administration', 'dosage_forms_and_strengths']"
+Simvastatin,False,"['spl_product_data_elements', 'indications_and_usage', 'dosage_and_administration', 'dosage_forms_and_strengths', 'contraindications']"
+Fluorouracil,False,"['spl_product_data_elements', 'spl_unclassified_section', 'description', 'clinical_pharmacology', 'indications_and_usage']"
+Codeine,False,"['spl_product_data_elements', 'recent_major_changes', 'recent_major_changes_table', 'boxed_warning', 'indications_and_usage']"
+Tamoxifen,False,"['spl_product_data_elements', 'boxed_warning', 'description', 'clinical_pharmacology', 'clinical_pharmacology_table']"
+Phenytoin,True,"['spl_product_data_elements', 'boxed_warning', 'recent_major_changes', 'indications_and_usage', 'dosage_and_administration']"
+Atorvastatin,False,"['spl_product_data_elements', 'recent_major_changes', 'indications_and_usage', 'dosage_and_administration', 'dosage_forms_and_strengths']"
+Capecitabine,True,"['spl_product_data_elements', 'boxed_warning', 'recent_major_changes', 'indications_and_usage', 'dosage_and_administration']"
+Carbamazepine,False,"['spl_product_data_elements', 'boxed_warning', 'dosage_forms_and_strengths', 'description', 'clinical_pharmacology']"
+Abacavir,False,"['spl_product_data_elements', 'boxed_warning', 'indications_and_usage', 'dosage_and_administration', 'dosage_and_administration_table']"
+Allopurinol,True,"['spl_product_data_elements', 'boxed_warning', 'recent_major_changes', 'indications_and_usage', 'dosage_and_administration']"

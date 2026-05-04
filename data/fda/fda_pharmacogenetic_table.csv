@@ -1,0 +1,14 @@
+drug,gene,variant,recommendation,action,evidence
+Abacavir,HLA-B,HLA-B*57:01,Screen for HLA-B*57:01 before initiating,Contraindicated if positive,Boxed Warning
+Carbamazepine,HLA-B,HLA-B*15:02,Screen for HLA-B*15:02 in at-risk populations,Avoid if positive,Boxed Warning
+Allopurinol,HLA-B,HLA-B*58:01,Screen for HLA-B*58:01,Consider alternatives if positive,Warning
+Clopidogrel,CYP2C19,CYP2C19*2/*3,Consider alternative therapy for poor metabolizers,Alternative antiplatelet,Warning
+Warfarin,CYP2C9/VKORC1,"CYP2C9*2/*3, VKORC1",Use genotype-guided dosing,Dose adjustment,Dosage Label
+Codeine,CYP2D6,CYP2D6 ultrarapid metabolizer,Avoid in ultrarapid metabolizers,Contraindicated,Boxed Warning
+Fluorouracil,DPYD,DPYD*2A,Screen for DPYD variants,Dose reduction,Dosage Label
+Simvastatin,SLCO1B1,SLCO1B1*5,Consider alternative statin,Alternative therapy,Dosage Label
+Tamoxifen,CYP2D6,CYP2D6 poor metabolizer,Consider alternative hormonal therapy,Alternative therapy,Warning
+Phenytoin,CYP2C9,CYP2C9*3,Consider dose reduction,Dose adjustment,Dosage Label
+Rivaroxaban,CYP3A4/3A5,CYP3A4*22,Monitor for bleeding,Monitor,Warning
+Metoprolol,CYP2D6,CYP2D6 poor metabolizer,Consider dose reduction,Dose adjustment,Dosage Label
+Celecoxib,CYP2C9,CYP2C9*3,Consider dose reduction,Dose adjustment,Dosage Label

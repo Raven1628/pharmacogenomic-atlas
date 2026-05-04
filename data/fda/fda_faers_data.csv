@@ -1,0 +1,8 @@
+drug,gene,adverse_event,risk_increase,population_risk
+Abacavir,HLA-B,Hypersensitivity,50.0,0.05
+Carbamazepine,HLA-B,SJS/TEN,100.0,0.001
+Allopurinol,HLA-B,SCAR,80.0,0.002
+Clopidogrel,CYP2C19,Stent thrombosis,3.5,0.02
+Codeine,CYP2D6,Respiratory depression,10.0,0.001
+Fluorouracil,DPYD,Severe toxicity,8.0,0.03
+Simvastatin,SLCO1B1,Myopathy,4.5,0.01
