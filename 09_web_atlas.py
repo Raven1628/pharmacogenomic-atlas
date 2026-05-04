@@ -354,3 +354,4 @@ if __name__ == '__main__':
     print("="*60)
     
     app.run(debug=True, host='127.0.0.1', port=8050)  # Changed from run_server to runserver = app.server
+server = app.server
