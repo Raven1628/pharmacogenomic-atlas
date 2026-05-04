@@ -1,5 +1,5 @@
 # 09_web_atlas.py
-# Complete Pharmacogenomic Equity Atlas with LARGE DATASET support
+# Complete Pharmacogenomic Equity Atlas with UMAP and PCA
 
 import dash
 from dash import dcc, html, Input, Output
@@ -10,29 +10,32 @@ import numpy as np
 import os
 
 print("="*60)
-print("Pharmacogenomic Equity Atlas - LARGE DATASET VERSION")
+print("Pharmacogenomic Equity Atlas - With UMAP Analysis")
 print("="*60)
 
-# Load data (try multiple sources)
+# Load data
 try:
-    df = pd.read_csv("data/processed/pharmacogenomic_equity_scores_large.csv")
-    print(f"  ✓ Loaded LARGE dataset: {len(df):,} patient records")
+    df = pd.read_csv("data/processed/pharmacogenomic_equity_scores.csv")
+    print(f"  ✓ Loaded {len(df):,} patient records")
 except:
-    try:
-        df = pd.read_csv("data/processed/pharmacogenomic_equity_scores.csv")
-        print(f"  ✓ Loaded standard dataset: {len(df):,} patient records")
-    except:
-        df = pd.read_csv("data/processed/large_dataset.csv")
-        print(f"  ✓ Loaded fallback dataset: {len(df):,} patient records")
+    df = pd.read_csv("data/processed/enhanced_gxe_data.csv")
+    print(f"  ✓ Loaded {len(df):,} records")
 
-dataset_size = len(df)
+# Load UMAP coordinates if available
+try:
+    umap_df = pd.read_csv("data/processed/umap_coordinates.csv")
+    print(f"  ✓ Loaded UMAP coordinates for {len(umap_df):,} samples")
+    umap_available = True
+except:
+    umap_available = False
+    print("  ⚠ UMAP coordinates not found - run umap_complete_analysis.py first")
 
 def get_ancestry_description(ancestry):
     descriptions = {'AFR': 'African', 'EUR': 'European', 'EAS': 'East Asian',
                     'SAS': 'South Asian', 'AMR': 'Admixed American'}
     return descriptions.get(ancestry, ancestry)
 
-# Expanded drug guidelines
+# Drug guidelines
 guidelines = {
     'Warfarin': {'gene': 'CYP2C9', 'Low Risk': '5mg daily', 'Moderate Risk': '3-4mg',
                  'High Risk': 'Genotype-guided', 'Very High Risk': 'Alternative anticoagulant'},
@@ -55,7 +58,7 @@ guidelines = {
     'Carbamazepine': {'gene': 'HLA-B', 'Low Risk': 'Standard', 'Moderate Risk': 'Monitor rash',
                       'High Risk': 'Screen HLA-B*1502', 'Very High Risk': 'Avoid carbamazepine'},
     'Abacavir': {'gene': 'HLA-B', 'Low Risk': 'Standard', 'Moderate Risk': 'Screen HLA-B*5701',
-                 'High Risk': 'Screen HLA-B*5701', 'Very High Risk': 'Contraindicated if positive'},
+                 'High Risk': 'Screen HLA-B*5701', 'Very High Risk': 'Contraindicated'},
     'Allopurinol': {'gene': 'HLA-B', 'Low Risk': 'Standard', 'Moderate Risk': 'Monitor rash',
                     'High Risk': 'Screen HLA-B*5801', 'Very High Risk': 'Avoid allopurinol'}
 }
@@ -69,7 +72,7 @@ app.layout = html.Div([
     html.Div([
         html.H1("🏥 Pharmacogenomic Equity Atlas", 
                 style={'textAlign': 'center', 'color': '#2c3e50'}),
-        html.P(f"Analyzing {dataset_size:,} patient records | {len(guidelines)} drugs | 5 ancestry groups",
+        html.P(f"Analyzing {len(df):,} patient records | {len(guidelines)} drugs | 5 ancestry groups",
                style={'textAlign': 'center', 'color': '#7f8c8d'})
     ], style={'marginBottom': '30px'}),
     
@@ -155,14 +158,46 @@ app.layout = html.Div([
         dcc.Tab(label='📊 PCA Analysis', children=[
             html.Div([
                 html.H3("Principal Component Analysis"),
-                html.P(f"Based on {dataset_size:,} patient records. PC1 explains 52.7% of variance, PC2 explains 33.6%."),
+                html.P("PCA shows linear relationships in the data."),
                 dcc.Loading(dcc.Graph(id='pca-plot'))
+            ], style={'padding': '20px'})
+        ]),
+        
+        dcc.Tab(label='🗺️ UMAP Analysis', children=[
+            html.Div([
+                html.H3("UMAP Manifold Learning", style={'marginTop': '20px'}),
+                html.P("UMAP (Uniform Manifold Approximation and Projection) reveals non-linear patterns in genetic and SES data, often showing clearer separation than PCA."),
+                
+                html.Div([
+                    html.Label("Color By:", style={'fontWeight': 'bold'}),
+                    dcc.RadioItems(
+                        id='umap-color-by',
+                        options=[
+                            {'label': ' Ancestry', 'value': 'ancestry'},
+                            {'label': ' Risk Category', 'value': 'risk'},
+                            {'label': ' Equity Score', 'value': 'equity'},
+                            {'label': ' Genetic Risk', 'value': 'genetic'}
+                        ],
+                        value='ancestry',
+                        inline=True,
+                        style={'marginTop': '10px'}
+                    )
+                ], style={'marginBottom': '20px'}),
+                
+                dcc.Loading(
+                    id="loading-umap",
+                    type="circle",
+                    children=[dcc.Graph(id='umap-plot')]
+                ),
+                
+                html.P("UMAP preserves local structure better than PCA, revealing meaningful clusters of patients with similar risk profiles.",
+                       style={'fontSize': '12px', 'color': '#666', 'marginTop': '20px', 'textAlign': 'center'})
             ], style={'padding': '20px'})
         ])
     ])
 ])
 
-# Callbacks (simplified for space - same as before)
+# Callbacks
 @app.callback(
     Output('calculator-results', 'children'),
     Input('ancestry-input', 'value'),
@@ -189,6 +224,94 @@ def update_calculator(ancestry, ses, genetic):
     ])
 
 @app.callback(
+    Output('risk-warning', 'children'),
+    Input('ses-slider', 'value'),
+    Input('genetic-slider', 'value'),
+    Input('ancestry-input', 'value')
+)
+def show_risk_warning(ses, genetic, ancestry):
+    if not ancestry:
+        return html.Div()
+    warnings = []
+    if ses > 0.8 and genetic > 66:
+        warnings.append(html.Div("🔴 HIGH RISK ALERT: Both genetic and SES factors elevated", 
+                                 style={'backgroundColor': '#fdedec', 'padding': '10px', 'borderRadius': '10px', 'color': '#e74c3c'}))
+    elif genetic > 66:
+        warnings.append(html.Div("⚠️ High Genetic Risk - Genotype-guided dosing recommended", 
+                                 style={'backgroundColor': '#fdf2e9', 'padding': '10px', 'borderRadius': '10px'}))
+    elif ses > 0.7:
+        warnings.append(html.Div("⚠️ High SES Vulnerability - Enhanced monitoring recommended", 
+                                 style={'backgroundColor': '#fdf2e9', 'padding': '10px', 'borderRadius': '10px'}))
+    return html.Div(warnings)
+
+@app.callback(
+    Output("download-report", "data"),
+    Input("generate-report-btn", "n_clicks"),
+    Input('ancestry-input', 'value'),
+    Input('ses-slider', 'value'),
+    Input('genetic-slider', 'value')
+)
+def generate_report(n_clicks, ancestry, ses, genetic):
+    if n_clicks is None or not ancestry:
+        return None
+    score = genetic * 0.5 + ses * 50
+    report = f"""
+    <html>
+    <head><title>Pharmacogenomic Report</title></head>
+    <body style="font-family: Arial; padding: 40px;">
+        <h1>Pharmacogenomic Patient Report</h1>
+        <p><strong>Ancestry:</strong> {ancestry}</p>
+        <p><strong>SES Score:</strong> {ses:.2f}</p>
+        <p><strong>Genetic Risk:</strong> {genetic:.0f}</p>
+        <p><strong>Equity Score:</strong> {score:.1f}</p>
+        <hr>
+        <h3>Recommendations:</h3>
+        <ul>
+    """
+    for drug in guidelines:
+        if score < 25:
+            rec = guidelines[drug]['Low Risk']
+        elif score < 50:
+            rec = guidelines[drug]['Moderate Risk']
+        elif score < 75:
+            rec = guidelines[drug]['High Risk']
+        else:
+            rec = guidelines[drug]['Very High Risk']
+        report += f"<li><strong>{drug}:</strong> {rec}</li>"
+    report += "</ul></body></html>"
+    return dcc.send_bytes(report.encode(), f"report_{ancestry}.html")
+
+@app.callback(
+    Output('drug-select', 'options'),
+    Input('drug-search', 'value')
+)
+def filter_drugs(search_term):
+    if not search_term:
+        return [{'label': f"{drug} ({guidelines[drug]['gene']})", 'value': drug} for drug in guidelines]
+    search_lower = search_term.lower()
+    filtered = [drug for drug in guidelines if search_lower in drug.lower() or search_lower in guidelines[drug]['gene'].lower()]
+    return [{'label': f"{drug} ({guidelines[drug]['gene']})", 'value': drug} for drug in filtered]
+
+@app.callback(
+    Output('guidelines-table', 'children'),
+    Input('drug-select', 'value')
+)
+def update_guidelines(drug):
+    drug_guidelines = guidelines[drug]
+    rows = []
+    for risk, rec in drug_guidelines.items():
+        if risk == "Low Risk":
+            color = "#27ae60"
+        elif risk == "Moderate Risk":
+            color = "#f39c12"
+        elif risk == "High Risk":
+            color = "#e67e22"
+        else:
+            color = "#e74c3c"
+        rows.append(html.Tr([html.Td(risk, style={'backgroundColor': color, 'color': 'white'}), html.Td(rec)]))
+    return html.Table(rows)
+
+@app.callback(
     Output('equity-distribution', 'figure'),
     Input('ancestry-filter', 'value')
 )
@@ -202,6 +325,19 @@ def update_distribution(filter_val):
     return fig
 
 @app.callback(
+    Output('risk-heatmap', 'figure'),
+    Input('ancestry-filter', 'value')
+)
+def update_heatmap(filter_val):
+    data = df if filter_val == 'All' else df[df['ancestry'] == filter_val]
+    data = data.copy()
+    data['risk_group'] = pd.qcut(data['equity_score'], 4, labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4 (Highest)'])
+    heatmap_data = data.groupby(['ancestry', 'risk_group'])['high_risk'].mean().unstack()
+    fig = px.imshow(heatmap_data, title="High Risk Proportion by Ancestry and Risk Level",
+                    color_continuous_scale="RdYlGn_r", aspect="auto", text_auto='.2f')
+    return fig
+
+@app.callback(
     Output('pca-plot', 'figure'),
     Input('pca-plot', 'id')
 )
@@ -212,10 +348,47 @@ def create_pca_plot(_):
     available = [f for f in features if f in df.columns]
     X = df[available].dropna()
     X_scaled = StandardScaler().fit_transform(X)
-    pca_result = PCA(n_components=2).fit_transform(X_scaled)
-    fig = px.scatter(x=pca_result[:, 0], y=pca_result[:, 1], color=df.loc[X.index, 'ancestry'],
+    pca = PCA(n_components=2)
+    pca_result = pca.fit_transform(X_scaled)
+    fig = px.scatter(x=pca_result[:, 0], y=pca_result[:, 1], 
+                     color=df.loc[X.index, 'ancestry'],
                      title=f'PCA: Risk Components (n={len(X):,})',
-                     labels={'x': 'PC1 (52.7%)', 'y': 'PC2 (33.6%)'})
+                     labels={'x': f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)', 
+                             'y': f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)'})
+    return fig
+
+@app.callback(
+    Output('umap-plot', 'figure'),
+    Input('umap-color-by', 'value')
+)
+def create_umap_plot(color_by):
+    if not umap_available:
+        fig = go.Figure()
+        fig.add_annotation(text="UMAP coordinates not found. Run 'python umap_complete_analysis.py' first",
+                           showarrow=False)
+        return fig
+    
+    if color_by == 'ancestry':
+        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='ancestry',
+                         title='UMAP Projection - Colored by Ancestry',
+                         color_discrete_map={'AFR': '#e41a1c', 'EUR': '#377eb8', 
+                                            'EAS': '#4daf4a', 'SAS': '#984ea3', 'AMR': '#ff7f00'})
+    elif color_by == 'risk':
+        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='risk_category',
+                         title='UMAP Projection - Colored by Risk Category',
+                         color_discrete_map={'Low Risk': '#27ae60', 'Moderate Risk': '#f39c12',
+                                            'High Risk': '#e67e22', 'Very High Risk': '#e74c3c'})
+    elif color_by == 'equity':
+        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='equity_score',
+                         title='UMAP Projection - Colored by Equity Score',
+                         color_continuous_scale='RdYlGn_r')
+    else:
+        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='genetic_risk',
+                         title='UMAP Projection - Colored by Genetic Risk',
+                         color_continuous_scale='viridis')
+    
+    fig.update_traces(marker=dict(size=5, opacity=0.6))
+    fig.update_layout(height=600)
     return fig
 
 if __name__ == '__main__':
