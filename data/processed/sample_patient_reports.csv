@@ -1,0 +1,11 @@
+Patient,Ancestry,Genotype,Equity Score,Risk
+ENH_01501,EAS,0 alleles,39.0,Moderate Risk
+ENH_02586,AFR,0 alleles,34.6,Moderate Risk
+ENH_02653,AFR,0 alleles,9.4,Low Risk
+ENH_01055,EUR,0 alleles,15.4,Low Risk
+ENH_00705,AMR,2 alleles,55.6,High Risk
+ENH_00106,EUR,0 alleles,9.8,Low Risk
+ENH_00589,AFR,0 alleles,34.2,Moderate Risk
+ENH_02468,EAS,0 alleles,34.9,Moderate Risk
+ENH_02413,AFR,0 alleles,22.6,Low Risk
+ENH_01600,AFR,0 alleles,37.7,Moderate Risk

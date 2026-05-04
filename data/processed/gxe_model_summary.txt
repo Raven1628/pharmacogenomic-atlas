@@ -1,0 +1,27 @@
+============================================================
+GxE INTERACTION MODEL RESULTS
+============================================================
+
+                           Logit Regression Results                           
+==============================================================================
+Dep. Variable:               toxicity   No. Observations:                40000
+Model:                          Logit   Df Residuals:                    39996
+Method:                           MLE   Df Model:                            3
+Date:                Fri, 01 May 2026   Pseudo R-squ.:                 0.05800
+Time:                        18:56:20   Log-Likelihood:                -4442.9
+converged:                       True   LL-Null:                       -4716.5
+Covariance Type:            nonrobust   LLR p-value:                2.865e-118
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+Intercept             -5.6728      0.115    -49.217      0.000      -5.899      -5.447
+genotype               0.6639      0.405      1.639      0.101      -0.130       1.458
+ses_score              3.4073      0.171     19.936      0.000       3.072       3.742
+genotype:ses_score     0.0451      0.564      0.080      0.936      -1.061       1.151
+======================================================================================
+
+============================================================
+Likelihood Ratio Test (interaction vs no interaction):
+  LR statistic: 0.01
+  p-value: 0.9362
+  Conclusion: NOT SIGNIFICANT GxE interaction

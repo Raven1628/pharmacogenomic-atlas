@@ -1,0 +1,61 @@
+""""# Install tools first
+pip install cyvcf2 pandas
+conda install -c bioconda bcftools
+
+# Download chr22 VCF from 1000 Genomes (contains CYP2D6)
+wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20220422_3202_phased_SNV_INDEL_SV/1kGP_high_coverage_Illumina.chr22.filtered.SNV_INDEL_SV_phased_panel.vcf.gz
+
+# Download the index file too
+wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20220422_3202_phased_SNV_INDEL_SV/1kGP_high_coverage_Illumina.chr22.filtered.SNV_INDEL_SV_phased_panel.vcf.gz.tbi
+
+# Subset to just CYP2D6 region (chr22:42,126,499-42,130,881)
+bcftools view -r chr22:42126499-42130881 \
+  1kGP_high_coverage_Illumina.chr22.filtered.SNV_INDEL_SV_phased_panel.vcf.gz \
+  -o CYP2D6_1kg.vcf.gz -O z
+""""
+import requests
+import pandas as pd
+
+def query_gnomad(gene_name, dataset="gnomad_r4"):
+    """Query gnomAD GraphQL API for variant frequencies in a gene"""
+    url = "https://gnomad.broadinstitute.org/api"
+    query = """
+    query GeneVariants($geneSymbol: String!, $dataset: DatasetId!) {
+      gene(gene_symbol: $geneSymbol, reference_genome: GRCh38) {
+        variants(dataset: $dataset) {
+          variant_id
+          pos
+          ref
+          alt
+          genome {
+            af
+            populations {
+              id
+              af
+              ac
+              an
+            }
+          }
+        }
+      }
+    }
+    """
+    response = requests.post(url, json={
+        "query": query,
+        "variables": {"geneSymbol": gene_name, "dataset": dataset}
+    })
+    data = response.json()
+    variants = data["data"]["gene"]["variants"]
+    return pd.DataFrame(variants)
+
+# Pull frequencies for key pharmacogenes
+pharmacogenes = ["CYP2D6", "CYP2C19", "CYP2C9", "SLCO1B1", "DPYD"]
+all_variants = {}
+
+for gene in pharmacogenes:
+    print(f"Fetching {gene}...")
+    all_variants[gene] = query_gnomad(gene)
+    
+# Save to file
+all_variants["CYP2D6"].to_csv("CYP2D6_gnomad_variants.csv", index=False)
+

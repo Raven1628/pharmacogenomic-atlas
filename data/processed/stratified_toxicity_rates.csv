@@ -1,0 +1,7 @@
+genotype_group,high_vulnerability_pop,toxicity_rate,std,n
+0 alt,0,0.013,0.114,32500
+0 alt,1,0.085,0.279,5720
+1 alt,0,0.029,0.169,1332
+1 alt,1,0.129,0.335,412
+2 alt,0,0.0,0.0,20
+2 alt,1,0.438,0.512,16

@@ -1,0 +1,12 @@
+gene,drug,phenotype,rsid,variant_name,effect_allele,beta,se,z_score,p_value,direction
+CYP2C9,Warfarin,Warfarin dose requirement,rs1799853,CYP2C9*2,T,-0.35,0.11666666666666665,-3.0,2.1e-12,decreased_response
+CYP2C9,Warfarin,Warfarin dose requirement,rs1057910,CYP2C9*3,C,-0.42,0.13999999999999999,-3.0,3.4e-15,decreased_response
+CYP2C9,Warfarin,Warfarin dose requirement,rs9332239,CYP2C9*6,A,-0.28,0.09333333333333334,-3.0,1.2e-08,decreased_response
+CYP2C19,Clopidogrel,Clopidogrel response,rs4244285,CYP2C19*2,G,-0.38,0.12666666666666668,-3.0,5.6e-14,decreased_response
+CYP2C19,Clopidogrel,Clopidogrel response,rs4986893,CYP2C19*3,A,-0.31,0.10333333333333333,-3.0,2.3e-10,decreased_response
+CYP2C19,Clopidogrel,Clopidogrel response,rs12248560,CYP2C19*17,C,0.25,0.08333333333333333,3.0,1.8e-07,increased_toxicity
+SLCO1B1,Simvastatin,Statin-induced myopathy,rs4149056,SLCO1B1*5,C,0.52,0.17333333333333334,3.0,8.7e-18,increased_toxicity
+SLCO1B1,Simvastatin,Statin-induced myopathy,rs2306283,SLCO1B1*1a,G,-0.18,0.06,-3.0,2.1e-05,decreased_response
+DPYD,Fluorouracil,Fluorouracil toxicity,rs3918290,DPYD*2A,A,0.89,0.2966666666666667,3.0,1.2e-22,increased_toxicity
+DPYD,Fluorouracil,Fluorouracil toxicity,rs55886062,DPYD*13,A,0.67,0.22333333333333336,3.0,3.4e-14,increased_toxicity
+DPYD,Fluorouracil,Fluorouracil toxicity,rs67376798,DPYD*9B,T,0.34,0.11333333333333334,3.0,4.5e-08,increased_toxicity

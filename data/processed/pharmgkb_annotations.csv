@@ -1,0 +1,11 @@
+gene,drug,phenotype,evidence_level,clinical_recommendation
+CYP2D6,Codeine,Toxicity,1A,Avoid codeine in poor metabolizers
+CYP2D6,Tamoxifen,Efficacy,1B,Consider alternative therapy
+CYP2C19,Clopidogrel,Efficacy,1A,Alternative antiplatelet therapy for poor metabolizers
+CYP2C19,Proton pump inhibitors,Efficacy,1A,Consider dose adjustment
+CYP2C9,Warfarin,Dosing,1A,Use genotype-guided dosing
+CYP2C9,Phenytoin,Toxicity,1B,Monitor levels closely
+SLCO1B1,Simvastatin,Myopathy,1A,Use alternative statin
+SLCO1B1,Atorvastatin,Efficacy,2A,Consider dose adjustment
+DPYD,Fluorouracil,Toxicity,1A,Reduce dose or avoid
+DPYD,Capecitabine,Toxicity,1A,Reduce dose or avoid
