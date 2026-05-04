@@ -1,5 +1,5 @@
 # 09_web_atlas.py
-# Complete Pharmacogenomic Equity Atlas with UMAP and PCA
+# Pharmacogenomic Equity Atlas with Full FDA Data Integration
 
 import dash
 from dash import dcc, html, Input, Output
@@ -10,16 +10,49 @@ import numpy as np
 import os
 
 print("="*60)
-print("Pharmacogenomic Equity Atlas - With UMAP Analysis")
+print("Pharmacogenomic Equity Atlas - WITH FDA DATA INTEGRATION")
 print("="*60)
 
-# Load data
+# ============================================================
+# 1. LOAD ALL DATA
+# ============================================================
+print("\n[1/5] Loading data...")
+
+# Load equity scores
 try:
     df = pd.read_csv("data/processed/pharmacogenomic_equity_scores.csv")
     print(f"  ✓ Loaded {len(df):,} patient records")
 except:
     df = pd.read_csv("data/processed/enhanced_gxe_data.csv")
     print(f"  ✓ Loaded {len(df):,} records")
+
+# Load FDA PGx associations
+try:
+    fda_df = pd.read_csv("data/fda/fda_pgx_associations.csv")
+    print(f"  ✓ Loaded FDA PGx associations: {len(fda_df)} drugs")
+except:
+    # Create FDA data if not available
+    fda_df = pd.DataFrame([
+        {"Drug": "Abacavir", "Gene": "HLA-B", "Variant": "HLA-B*57:01", 
+         "FDA_Action": "Boxed Warning", "Recommendation": "Screen before use; contraindicated if positive"},
+        {"Drug": "Carbamazepine", "Gene": "HLA-B", "Variant": "HLA-B*15:02", 
+         "FDA_Action": "Boxed Warning", "Recommendation": "Screen in at-risk populations; avoid if positive"},
+        {"Drug": "Clopidogrel", "Gene": "CYP2C19", "Variant": "CYP2C19*2/*3", 
+         "FDA_Action": "Warning", "Recommendation": "Consider alternative therapy in poor metabolizers"},
+        {"Drug": "Warfarin", "Gene": "CYP2C9/VKORC1", "Variant": "CYP2C9*2/*3", 
+         "FDA_Action": "Dosage Label", "Recommendation": "Use genotype-guided initial dosing"},
+        {"Drug": "Codeine", "Gene": "CYP2D6", "Variant": "Ultrarapid metabolizer", 
+         "FDA_Action": "Boxed Warning", "Recommendation": "Contraindicated in children; avoid in ultrarapid metabolizers"},
+        {"Drug": "Simvastatin", "Gene": "SLCO1B1", "Variant": "SLCO1B1*5", 
+         "FDA_Action": "Dosage Label", "Recommendation": "Consider lower dose or alternative statin"},
+        {"Drug": "Fluorouracil", "Gene": "DPYD", "Variant": "DPYD*2A", 
+         "FDA_Action": "Dosage Label", "Recommendation": "Consider dose reduction in intermediate metabolizers"},
+        {"Drug": "Tamoxifen", "Gene": "CYP2D6", "Variant": "Poor metabolizer", 
+         "FDA_Action": "Clinical Pharmacology", "Recommendation": "Consider alternative hormonal therapy"},
+        {"Drug": "Allopurinol", "Gene": "HLA-B", "Variant": "HLA-B*58:01", 
+         "FDA_Action": "Warning", "Recommendation": "Consider screening in high-risk populations"},
+    ])
+    print(f"  ✓ Created FDA reference data: {len(fda_df)} drugs")
 
 # Load UMAP coordinates if available
 try:
@@ -28,61 +61,155 @@ try:
     umap_available = True
 except:
     umap_available = False
-    print("  ⚠ UMAP coordinates not found - run umap_complete_analysis.py first")
+    print("  ⚠ UMAP coordinates not available")
 
+# ============================================================
+# 2. DRUG GUIDELINES WITH FDA EVIDENCE
+# ============================================================
+print("\n[2/5] Loading drug guidelines with FDA evidence...")
+
+# Drug guidelines with FDA evidence levels
+guidelines = {
+    'Warfarin': {
+        'gene': 'CYP2C9/VKORC1',
+        'fda_level': '📋 Dosage Label',
+        'fda_action': 'Dose adjustment based on genotype',
+        'Low Risk': 'Standard dosing (5mg daily)',
+        'Moderate Risk': 'Consider reduced initial dose (3-4mg)',
+        'High Risk': 'Genotype-guided dosing recommended',
+        'Very High Risk': 'Alternative anticoagulant'
+    },
+    'Clopidogrel': {
+        'gene': 'CYP2C19',
+        'fda_level': '⚠️ Warning',
+        'fda_action': 'Alternative therapy for poor metabolizers',
+        'Low Risk': 'Standard therapy (75mg daily)',
+        'Moderate Risk': 'Monitor platelet function',
+        'High Risk': 'Consider alternative therapy (ticagrelor)',
+        'Very High Risk': 'Avoid clopidogrel'
+    },
+    'Simvastatin': {
+        'gene': 'SLCO1B1',
+        'fda_level': '📋 Dosage Label',
+        'fda_action': 'Lower dose or alternative statin',
+        'Low Risk': 'Standard 40mg daily',
+        'Moderate Risk': 'Start with 20mg, monitor CK',
+        'High Risk': 'Use pravastatin or rosuvastatin',
+        'Very High Risk': 'Avoid simvastatin'
+    },
+    'Fluorouracil': {
+        'gene': 'DPYD',
+        'fda_level': '📋 Dosage Label',
+        'fda_action': 'Dose reduction based on DPYD status',
+        'Low Risk': 'Standard dosing (500mg/m²)',
+        'Moderate Risk': 'Consider 25% dose reduction',
+        'High Risk': 'Consider 50% dose reduction',
+        'Very High Risk': 'Avoid fluorouracil'
+    },
+    'Codeine': {
+        'gene': 'CYP2D6',
+        'fda_level': '⚠️⚠️ Boxed Warning',
+        'fda_action': 'Contraindicated in children and ultrarapid metabolizers',
+        'Low Risk': 'Standard dosing (30-60mg)',
+        'Moderate Risk': 'Consider 25% dose reduction',
+        'High Risk': 'Avoid codeine, consider tramadol',
+        'Very High Risk': 'Use non-opioid alternatives'
+    },
+    'Carbamazepine': {
+        'gene': 'HLA-B',
+        'fda_level': '⚠️⚠️ Boxed Warning',
+        'fda_action': 'Screen for HLA-B*1502 in at-risk populations',
+        'Low Risk': 'Standard dosing',
+        'Moderate Risk': 'Monitor for rash',
+        'High Risk': 'Screen for HLA-B*1502 allele',
+        'Very High Risk': 'Avoid carbamazepine, use alternative'
+    },
+    'Abacavir': {
+        'gene': 'HLA-B',
+        'fda_level': '⚠️⚠️ Boxed Warning',
+        'fda_action': 'Screen for HLA-B*5701 before prescribing',
+        'Low Risk': 'Standard dosing (600mg daily)',
+        'Moderate Risk': 'Screen for HLA-B*5701',
+        'High Risk': 'Screen for HLA-B*5701',
+        'Very High Risk': 'Contraindicated if HLA-B*5701 positive'
+    },
+    'Tamoxifen': {
+        'gene': 'CYP2D6',
+        'fda_level': 'ℹ️ Clinical Pharmacology',
+        'fda_action': 'Consider alternative therapy for poor metabolizers',
+        'Low Risk': 'Standard dosing (20mg daily)',
+        'Moderate Risk': 'Monitor for reduced efficacy',
+        'High Risk': 'Consider aromatase inhibitor',
+        'Very High Risk': 'Switch to anastrozole or letrozole'
+    },
+    'Allopurinol': {
+        'gene': 'HLA-B',
+        'fda_level': '⚠️ Warning',
+        'fda_action': 'Screen for HLA-B*5801 in high-risk populations',
+        'Low Risk': 'Standard dosing (100-300mg daily)',
+        'Moderate Risk': 'Monitor for rash',
+        'High Risk': 'Screen for HLA-B*5801 allele',
+        'Very High Risk': 'Avoid allopurinol, use alternative'
+    },
+    'Phenytoin': {
+        'gene': 'CYP2C9',
+        'fda_level': 'ℹ️ Clinical Pharmacology',
+        'fda_action': 'Dose adjustment for CYP2C9 poor metabolizers',
+        'Low Risk': 'Standard dosing (300-400mg daily)',
+        'Moderate Risk': 'Monitor levels frequently',
+        'High Risk': 'Consider 25% dose reduction',
+        'Very High Risk': 'Consider alternative anticonvulsant'
+    }
+}
+
+print(f"  ✓ Loaded guidelines for {len(guidelines)} drugs with FDA evidence")
+
+# ============================================================
+# 3. CREATE DASH APP
+# ============================================================
+print("\n[3/5] Creating Dash application...")
+
+app = dash.Dash(__name__, title="Pharmacogenomic Equity Atlas - FDA Edition")
+server = app.server
+
+# Helper function
 def get_ancestry_description(ancestry):
     descriptions = {'AFR': 'African', 'EUR': 'European', 'EAS': 'East Asian',
                     'SAS': 'South Asian', 'AMR': 'Admixed American'}
     return descriptions.get(ancestry, ancestry)
 
-# Drug guidelines
-guidelines = {
-    'Warfarin': {'gene': 'CYP2C9', 'Low Risk': '5mg daily', 'Moderate Risk': '3-4mg',
-                 'High Risk': 'Genotype-guided', 'Very High Risk': 'Alternative anticoagulant'},
-    'Clopidogrel': {'gene': 'CYP2C19', 'Low Risk': '75mg daily', 'Moderate Risk': 'Monitor',
-                    'High Risk': 'Alternative therapy', 'Very High Risk': 'Avoid clopidogrel'},
-    'Simvastatin': {'gene': 'SLCO1B1', 'Low Risk': '40mg', 'Moderate Risk': '20mg',
-                    'High Risk': 'Alternative statin', 'Very High Risk': 'Avoid simvastatin'},
-    'Fluorouracil': {'gene': 'DPYD', 'Low Risk': 'Standard', 'Moderate Risk': '25% reduction',
-                     'High Risk': '50% reduction', 'Very High Risk': 'Avoid fluorouracil'},
-    'Codeine': {'gene': 'CYP2D6', 'Low Risk': '30-60mg', 'Moderate Risk': '25% reduction',
-                'High Risk': 'Avoid codeine', 'Very High Risk': 'Non-opioid alternatives'},
-    'Tamoxifen': {'gene': 'CYP2D6', 'Low Risk': '20mg', 'Moderate Risk': 'Monitor',
-                  'High Risk': 'Consider AI', 'Very High Risk': 'Switch to AI'},
-    'Phenytoin': {'gene': 'CYP2C9', 'Low Risk': '300-400mg', 'Moderate Risk': 'Monitor levels',
-                  'High Risk': '25% reduction', 'Very High Risk': 'Alternative AED'},
-    'Atorvastatin': {'gene': 'SLCO1B1', 'Low Risk': '10-20mg', 'Moderate Risk': 'Start 10mg',
-                     'High Risk': 'Alternative statin', 'Very High Risk': 'Avoid atorvastatin'},
-    'Capecitabine': {'gene': 'DPYD', 'Low Risk': 'Standard', 'Moderate Risk': '25% reduction',
-                     'High Risk': '50% reduction', 'Very High Risk': 'Avoid capecitabine'},
-    'Carbamazepine': {'gene': 'HLA-B', 'Low Risk': 'Standard', 'Moderate Risk': 'Monitor rash',
-                      'High Risk': 'Screen HLA-B*1502', 'Very High Risk': 'Avoid carbamazepine'},
-    'Abacavir': {'gene': 'HLA-B', 'Low Risk': 'Standard', 'Moderate Risk': 'Screen HLA-B*5701',
-                 'High Risk': 'Screen HLA-B*5701', 'Very High Risk': 'Contraindicated'},
-    'Allopurinol': {'gene': 'HLA-B', 'Low Risk': 'Standard', 'Moderate Risk': 'Monitor rash',
-                    'High Risk': 'Screen HLA-B*5801', 'Very High Risk': 'Avoid allopurinol'}
-}
-
-print(f"  ✓ Loaded guidelines for {len(guidelines)} drugs")
-
-app = dash.Dash(__name__, title="Pharmacogenomic Equity Atlas")
-server = app.server
-
+# ============================================================
+# 4. APP LAYOUT
+# ============================================================
 app.layout = html.Div([
+    # Header with FDA badge
     html.Div([
         html.H1("🏥 Pharmacogenomic Equity Atlas", 
-                style={'textAlign': 'center', 'color': '#2c3e50'}),
-        html.P(f"Analyzing {len(df):,} patient records | {len(guidelines)} drugs | 5 ancestry groups",
+                style={'textAlign': 'center', 'color': '#2c3e50', 'marginBottom': '5px'}),
+        html.Div([
+            html.Span("🔬 FDA Pharmacogenetic Data Integrated", 
+                      style={'backgroundColor': '#1a56db', 'color': 'white', 
+                             'padding': '5px 15px', 'borderRadius': '20px', 'fontSize': '14px'})
+        ], style={'textAlign': 'center', 'marginBottom': '10px'}),
+        html.P(f"Analyzing {len(df):,} patient records | {len(guidelines)} drugs with FDA guidance | 5 ancestry groups",
                style={'textAlign': 'center', 'color': '#7f8c8d'})
     ], style={'marginBottom': '30px'}),
     
     dcc.Tabs([
+        # TAB 1: Clinical Calculator
         dcc.Tab(label='📊 Clinical Calculator', children=[
             html.Div([
-                html.H3("Patient Risk Assessment Tool"),
+                html.H3("Patient Risk Assessment Tool", style={'marginTop': '20px'}),
+                
+                # FDA Info Banner
+                html.Div([
+                    html.Span("ℹ️", style={'fontSize': '20px', 'marginRight': '10px'}),
+                    html.Span("Recommendations incorporate FDA Boxed Warnings, Warnings, and Dosage Label information."),
+                ], style={'backgroundColor': '#e8f4f8', 'padding': '10px', 'borderRadius': '10px', 'marginBottom': '20px'}),
+                
                 html.Div([
                     html.Div([
-                        html.Label("Patient Ancestry:"),
+                        html.Label("Patient Ancestry:", style={'fontWeight': 'bold'}),
                         dcc.Dropdown(
                             id='ancestry-input',
                             options=[{'label': f"{a} - {get_ancestry_description(a)}", 'value': a} 
@@ -90,8 +217,9 @@ app.layout = html.Div([
                             placeholder='Select ancestry...'
                         )
                     ], style={'width': '30%', 'display': 'inline-block'}),
+                    
                     html.Div([
-                        html.Label("SES Vulnerability Score (0-1):"),
+                        html.Label("SES Vulnerability Score (0-1):", style={'fontWeight': 'bold'}),
                         dcc.Slider(
                             id='ses-slider',
                             min=0, max=1, step=0.01, value=0.5,
@@ -99,8 +227,9 @@ app.layout = html.Div([
                             tooltip={"always_visible": True}
                         )
                     ], style={'width': '65%', 'display': 'inline-block', 'marginLeft': '20px'}),
+                    
                     html.Div([
-                        html.Label("Genetic Risk Score (0-100):"),
+                        html.Label("Genetic Risk Score (0-100):", style={'fontWeight': 'bold'}),
                         dcc.Slider(
                             id='genetic-slider',
                             min=0, max=100, step=1, value=33,
@@ -109,95 +238,134 @@ app.layout = html.Div([
                         )
                     ], style={'marginTop': '20px'})
                 ]),
-                html.Div(id='risk-warning', style={'marginTop': '10px'}),
-                html.Div(id='calculator-results', style={'marginTop': '10px', 'padding': '20px', 
-                                                         'backgroundColor': '#ecf0f1', 'borderRadius': '10px'}),
-                html.Div([
-                    html.Button("📄 Generate Patient Report", id="generate-report-btn", 
-                                style={'backgroundColor': '#3498db', 'color': 'white', 
-                                       'padding': '10px 20px', 'border': 'none', 'borderRadius': '5px',
-                                       'cursor': 'pointer', 'marginTop': '20px'}),
-                    dcc.Download(id="download-report")
-                ], style={'textAlign': 'center'})
+                
+                html.Div(id='calculator-results', style={'marginTop': '20px', 'padding': '20px', 
+                                                         'backgroundColor': '#ecf0f1', 'borderRadius': '10px'})
             ], style={'padding': '20px'})
         ]),
         
-        dcc.Tab(label='🗺️ Disparity Map', children=[
+        # TAB 2: FDA Pharmacogenetic Table
+        dcc.Tab(label='📋 FDA PGx Table', children=[
             html.Div([
-                html.H3("Population Health Disparities"),
+                html.H3("FDA Table of Pharmacogenetic Associations", style={'marginTop': '20px'}),
+                html.P("Based on FDA's official guidance for pharmacogenetic testing", 
+                       style={'color': '#666', 'marginBottom': '20px'}),
+                
                 html.Div([
-                    html.Label("Filter by Ancestry:"),
+                    html.Label("Filter by Drug:", style={'fontWeight': 'bold'}),
                     dcc.Dropdown(
-                        id='ancestry-filter',
-                        options=[{'label': 'All Groups', 'value': 'All'}] + 
-                                [{'label': a, 'value': a} for a in sorted(df['ancestry'].unique())],
+                        id='fda-filter',
+                        options=[{'label': 'All Drugs', 'value': 'All'}] + 
+                                [{'label': d, 'value': d} for d in sorted(fda_df['Drug'].unique())],
                         value='All'
                     )
-                ]),
-                dcc.Loading(dcc.Graph(id='equity-distribution')),
-                dcc.Loading(dcc.Graph(id='risk-heatmap'))
+                ], style={'width': '50%', 'marginBottom': '20px'}),
+                
+                html.Div(id='fda-table', style={'overflowX': 'auto'})
             ], style={'padding': '20px'})
         ]),
         
-        dcc.Tab(label='📋 Drug Guidelines', children=[
+        # TAB 3: Drug Guidelines with FDA Evidence
+        dcc.Tab(label='💊 Drug Guidelines', children=[
             html.Div([
-                html.H3("Clinical Recommendations"),
-                html.Div([
-                    html.Label("Search Drugs:"),
-                    dcc.Input(id='drug-search', type='text', placeholder='🔍 Search by name or gene...',
-                              style={'width': '100%', 'padding': '10px', 'marginBottom': '10px'})
-                ]),
-                html.Div([
-                    html.Label("Select Drug:"),
-                    dcc.Dropdown(id='drug-select', value='Warfarin')
-                ]),
-                html.Div(id='guidelines-table', style={'marginTop': '20px'})
-            ], style={'padding': '20px'})
-        ]),
-        
-        dcc.Tab(label='📊 PCA Analysis', children=[
-            html.Div([
-                html.H3("Principal Component Analysis"),
-                html.P("PCA shows linear relationships in the data."),
-                dcc.Loading(dcc.Graph(id='pca-plot'))
-            ], style={'padding': '20px'})
-        ]),
-        
-        dcc.Tab(label='🗺️ UMAP Analysis', children=[
-            html.Div([
-                html.H3("UMAP Manifold Learning", style={'marginTop': '20px'}),
-                html.P("UMAP (Uniform Manifold Approximation and Projection) reveals non-linear patterns in genetic and SES data, often showing clearer separation than PCA."),
+                html.H3("Clinical Recommendations with FDA Evidence", style={'marginTop': '20px'}),
                 
                 html.Div([
-                    html.Label("Color By:", style={'fontWeight': 'bold'}),
-                    dcc.RadioItems(
-                        id='umap-color-by',
-                        options=[
-                            {'label': ' Ancestry', 'value': 'ancestry'},
-                            {'label': ' Risk Category', 'value': 'risk'},
-                            {'label': ' Equity Score', 'value': 'equity'},
-                            {'label': ' Genetic Risk', 'value': 'genetic'}
-                        ],
-                        value='ancestry',
-                        inline=True,
-                        style={'marginTop': '10px'}
+                    html.Label("Select Drug:", style={'fontWeight': 'bold'}),
+                    dcc.Dropdown(
+                        id='drug-select',
+                        options=[{'label': f"{drug} - {guidelines[drug]['gene']}", 'value': drug} 
+                                 for drug in guidelines.keys()],
+                        value='Warfarin'
                     )
-                ], style={'marginBottom': '20px'}),
+                ], style={'width': '50%', 'marginBottom': '20px'}),
                 
-                dcc.Loading(
-                    id="loading-umap",
-                    type="circle",
-                    children=[dcc.Graph(id='umap-plot')]
-                ),
+                html.Div(id='drug-guidelines-table', style={'marginTop': '20px'})
+            ], style={'padding': '20px'})
+        ]),
+        
+        # TAB 4: FDA Evidence Summary
+        dcc.Tab(label='🏷️ FDA Evidence Levels', children=[
+            html.Div([
+                html.H3("Understanding FDA Evidence Levels", style={'marginTop': '20px'}),
                 
-                html.P("UMAP preserves local structure better than PCA, revealing meaningful clusters of patients with similar risk profiles.",
-                       style={'fontSize': '12px', 'color': '#666', 'marginTop': '20px', 'textAlign': 'center'})
+                html.Div([
+                    html.Div([
+                        html.H4("⚠️⚠️ Boxed Warning", style={'color': '#e74c3c'}),
+                        html.P("Strongest FDA warning. Indicates serious or life-threatening risk. Genetic testing is REQUIRED before prescribing.", 
+                               style={'marginLeft': '20px'}),
+                        html.P("Examples: Abacavir (HLA-B*57:01), Carbamazepine (HLA-B*15:02), Codeine (CYP2D6)", 
+                               style={'marginLeft': '20px', 'fontStyle': 'italic', 'color': '#666'})
+                    ], style={'borderLeft': '5px solid #e74c3c', 'padding': '15px', 'margin': '15px 0', 'backgroundColor': '#fdedec'}),
+                    
+                    html.Div([
+                        html.H4("⚠️ Warning", style={'color': '#e67e22'}),
+                        html.P("Indicates significant risk. Strongly consider genetic testing before prescribing.", 
+                               style={'marginLeft': '20px'}),
+                        html.P("Examples: Clopidogrel (CYP2C19), Allopurinol (HLA-B*58:01)", 
+                               style={'marginLeft': '20px', 'fontStyle': 'italic', 'color': '#666'})
+                    ], style={'borderLeft': '5px solid #e67e22', 'padding': '15px', 'margin': '15px 0', 'backgroundColor': '#fdf2e9'}),
+                    
+                    html.Div([
+                        html.H4("📋 Dosage Label", style={'color': '#3498db'}),
+                        html.P("Dosing guidance based on genotype. Genetic testing recommended for optimal dosing.", 
+                               style={'marginLeft': '20px'}),
+                        html.P("Examples: Warfarin (CYP2C9/VKORC1), Simvastatin (SLCO1B1), Fluorouracil (DPYD)", 
+                               style={'marginLeft': '20px', 'fontStyle': 'italic', 'color': '#666'})
+                    ], style={'borderLeft': '5px solid #3498db', 'padding': '15px', 'margin': '15px 0', 'backgroundColor': '#e8f4f8'}),
+                    
+                    html.Div([
+                        html.H4("ℹ️ Clinical Pharmacology", style={'color': '#2c3e50'}),
+                        html.P("Informational section describing genetic effects on drug PK/PD. Testing may be considered.", 
+                               style={'marginLeft': '20px'}),
+                        html.P("Examples: Tamoxifen (CYP2D6), Metoprolol (CYP2D6)", 
+                               style={'marginLeft': '20px', 'fontStyle': 'italic', 'color': '#666'})
+                    ], style={'borderLeft': '5px solid #2c3e50', 'padding': '15px', 'margin': '15px 0', 'backgroundColor': '#ecf0f1'})
+                ])
+            ], style={'padding': '20px'})
+        ]),
+        
+        # TAB 5: About
+        dcc.Tab(label='ℹ️ About', children=[
+            html.Div([
+                html.H3("About the Pharmacogenomic Equity Atlas", style={'marginTop': '20px'}),
+                html.P("This tool integrates genetic, socioeconomic, and FDA pharmacogenetic data to guide personalized medicine."),
+                
+                html.H4("Data Sources:"),
+                html.Ul([
+                    html.Li("🏛️ FDA Table of Pharmacogenetic Associations"),
+                    html.Li("🧬 1000 Genomes Project - Ancestry frequencies"),
+                    html.Li("📊 gnomAD - Variant frequencies"),
+                    html.Li("🏠 CDC SVI - Socioeconomic data"),
+                    html.Li("📚 PharmGKB/CPIC - Clinical guidelines")
+                ]),
+                
+                html.H4("FDA Evidence Levels:"),
+                html.Ul([
+                    html.Li("⚠️⚠️ Boxed Warning - Testing REQUIRED"),
+                    html.Li("⚠️ Warning - Testing STRONGLY recommended"),
+                    html.Li("📋 Dosage Label - Testing recommended"),
+                    html.Li("ℹ️ Clinical Pharmacology - Testing may be considered")
+                ]),
+                
+                html.H4("Supported Drugs:"),
+                html.Div([
+                    html.Ul([html.Li(drug) for drug in guidelines.keys()])
+                ], style={'columnCount': 2}),
+                
+                html.Hr(),
+                html.P("For clinical use only. Always consult a pharmacist.", 
+                       style={'fontStyle': 'italic', 'color': '#666'})
             ], style={'padding': '20px'})
         ])
     ])
 ])
 
-# Callbacks
+# ============================================================
+# 5. CALLBACKS
+# ============================================================
+print("\n[4/5] Defining callbacks...")
+
 @app.callback(
     Output('calculator-results', 'children'),
     Input('ancestry-input', 'value'),
@@ -206,191 +374,156 @@ app.layout = html.Div([
 )
 def update_calculator(ancestry, ses, genetic):
     if not ancestry:
-        return html.Div("⚠️ Select ancestry", style={'color': '#e74c3c'})
-    score = genetic * 0.5 + ses * 50
-    if score < 25:
-        risk, color = "Low Risk", "#27ae60"
-    elif score < 50:
-        risk, color = "Moderate Risk", "#f39c12"
-    elif score < 75:
-        risk, color = "High Risk", "#e67e22"
+        return html.Div("⚠️ Please select ancestry", style={'color': '#e74c3c'})
+    
+    equity_score = genetic * 0.5 + ses * 50
+    
+    if equity_score < 25:
+        risk_category = "Low Risk"
+        color = "#27ae60"
+        icon = "🟢"
+    elif equity_score < 50:
+        risk_category = "Moderate Risk"
+        color = "#f39c12"
+        icon = "🟡"
+    elif equity_score < 75:
+        risk_category = "High Risk"
+        color = "#e67e22"
+        icon = "🟠"
     else:
-        risk, color = "Very High Risk", "#e74c3c"
-    recs = [html.Li(f"💊 {drug}: {guidelines[drug][risk]}") for drug in guidelines]
+        risk_category = "Very High Risk"
+        color = "#e74c3c"
+        icon = "🔴"
+    
+    recommendations = []
+    for drug, info in guidelines.items():
+        fda_marker = info['fda_level']
+        rec = info[risk_category]
+        recommendations.append(html.Li(f"{fda_marker} 💊 {drug}: {rec}"))
+    
     return html.Div([
-        html.H4(f"Risk: {risk}", style={'color': color}),
-        html.P(f"Equity Score: {score:.1f}"),
-        html.Ul(recs)
+        html.H4(f"{icon} {risk_category}", style={'color': color}),
+        html.P(f"📊 Equity Score: {equity_score:.1f}"),
+        html.P(f"🌍 Ancestry: {ancestry} - {get_ancestry_description(ancestry)}"),
+        html.P(f"🏠 SES Score: {ses:.2f}"),
+        html.P(f"🧬 Genetic Risk: {genetic:.0f}"),
+        html.H5("FDA-Informed Clinical Recommendations:", style={'marginTop': '15px'}),
+        html.Ul(recommendations)
     ])
 
 @app.callback(
-    Output('risk-warning', 'children'),
-    Input('ses-slider', 'value'),
-    Input('genetic-slider', 'value'),
-    Input('ancestry-input', 'value')
+    Output('fda-table', 'children'),
+    Input('fda-filter', 'value')
 )
-def show_risk_warning(ses, genetic, ancestry):
-    if not ancestry:
-        return html.Div()
-    warnings = []
-    if ses > 0.8 and genetic > 66:
-        warnings.append(html.Div("🔴 HIGH RISK ALERT: Both genetic and SES factors elevated", 
-                                 style={'backgroundColor': '#fdedec', 'padding': '10px', 'borderRadius': '10px', 'color': '#e74c3c'}))
-    elif genetic > 66:
-        warnings.append(html.Div("⚠️ High Genetic Risk - Genotype-guided dosing recommended", 
-                                 style={'backgroundColor': '#fdf2e9', 'padding': '10px', 'borderRadius': '10px'}))
-    elif ses > 0.7:
-        warnings.append(html.Div("⚠️ High SES Vulnerability - Enhanced monitoring recommended", 
-                                 style={'backgroundColor': '#fdf2e9', 'padding': '10px', 'borderRadius': '10px'}))
-    return html.Div(warnings)
-
-@app.callback(
-    Output("download-report", "data"),
-    Input("generate-report-btn", "n_clicks"),
-    Input('ancestry-input', 'value'),
-    Input('ses-slider', 'value'),
-    Input('genetic-slider', 'value')
-)
-def generate_report(n_clicks, ancestry, ses, genetic):
-    if n_clicks is None or not ancestry:
-        return None
-    score = genetic * 0.5 + ses * 50
-    report = f"""
-    <html>
-    <head><title>Pharmacogenomic Report</title></head>
-    <body style="font-family: Arial; padding: 40px;">
-        <h1>Pharmacogenomic Patient Report</h1>
-        <p><strong>Ancestry:</strong> {ancestry}</p>
-        <p><strong>SES Score:</strong> {ses:.2f}</p>
-        <p><strong>Genetic Risk:</strong> {genetic:.0f}</p>
-        <p><strong>Equity Score:</strong> {score:.1f}</p>
-        <hr>
-        <h3>Recommendations:</h3>
-        <ul>
-    """
-    for drug in guidelines:
-        if score < 25:
-            rec = guidelines[drug]['Low Risk']
-        elif score < 50:
-            rec = guidelines[drug]['Moderate Risk']
-        elif score < 75:
-            rec = guidelines[drug]['High Risk']
+def update_fda_table(filter_val):
+    if filter_val == 'All':
+        display_df = fda_df
+    else:
+        display_df = fda_df[fda_df['Drug'] == filter_val]
+    
+    # Create color-coded rows based on FDA action
+    def get_row_color(action):
+        if 'Boxed' in str(action):
+            return '#fdedec'
+        elif 'Warning' in str(action):
+            return '#fdf2e9'
+        elif 'Dosage' in str(action):
+            return '#e8f4f8'
         else:
-            rec = guidelines[drug]['Very High Risk']
-        report += f"<li><strong>{drug}:</strong> {rec}</li>"
-    report += "</ul></body></html>"
-    return dcc.send_bytes(report.encode(), f"report_{ancestry}.html")
+            return 'white'
+    
+    rows = []
+    for _, row in display_df.iterrows():
+        bg_color = get_row_color(row['FDA_Action'])
+        rows.append(html.Tr([
+            html.Td(row['Drug'], style={'backgroundColor': bg_color, 'padding': '10px'}),
+            html.Td(row['Gene'], style={'backgroundColor': bg_color, 'padding': '10px'}),
+            html.Td(row['Variant'], style={'backgroundColor': bg_color, 'padding': '10px'}),
+            html.Td(row['FDA_Action'], style={'backgroundColor': bg_color, 'padding': '10px', 'fontWeight': 'bold'}),
+            html.Td(row['Recommendation'], style={'backgroundColor': bg_color, 'padding': '10px'})
+        ]))
+    
+    return html.Table([
+        html.Thead(html.Tr([
+            html.Th("Drug"), html.Th("Gene"), html.Th("Variant"), 
+            html.Th("FDA Action"), html.Th("Recommendation")
+        ], style={'backgroundColor': '#2c3e50', 'color': 'white'})),
+        html.Tbody(rows)
+    ], style={'width': '100%', 'borderCollapse': 'collapse', 'border': '1px solid #ddd'})
 
 @app.callback(
-    Output('drug-select', 'options'),
-    Input('drug-search', 'value')
-)
-def filter_drugs(search_term):
-    if not search_term:
-        return [{'label': f"{drug} ({guidelines[drug]['gene']})", 'value': drug} for drug in guidelines]
-    search_lower = search_term.lower()
-    filtered = [drug for drug in guidelines if search_lower in drug.lower() or search_lower in guidelines[drug]['gene'].lower()]
-    return [{'label': f"{drug} ({guidelines[drug]['gene']})", 'value': drug} for drug in filtered]
-
-@app.callback(
-    Output('guidelines-table', 'children'),
+    Output('drug-guidelines-table', 'children'),
     Input('drug-select', 'value')
 )
-def update_guidelines(drug):
-    drug_guidelines = guidelines[drug]
-    rows = []
-    for risk, rec in drug_guidelines.items():
-        if risk == "Low Risk":
-            color = "#27ae60"
-        elif risk == "Moderate Risk":
-            color = "#f39c12"
-        elif risk == "High Risk":
-            color = "#e67e22"
-        else:
-            color = "#e74c3c"
-        rows.append(html.Tr([html.Td(risk, style={'backgroundColor': color, 'color': 'white'}), html.Td(rec)]))
-    return html.Table(rows)
-
-@app.callback(
-    Output('equity-distribution', 'figure'),
-    Input('ancestry-filter', 'value')
-)
-def update_distribution(filter_val):
-    data = df if filter_val == 'All' else df[df['ancestry'] == filter_val]
-    fig = px.histogram(data, x='equity_score', color='ancestry', nbins=30,
-                       title=f'Equity Score Distribution (n={len(data):,})')
-    fig.add_vline(x=25, line_dash="dash", line_color="green")
-    fig.add_vline(x=50, line_dash="dash", line_color="orange")
-    fig.add_vline(x=75, line_dash="dash", line_color="red")
-    return fig
-
-@app.callback(
-    Output('risk-heatmap', 'figure'),
-    Input('ancestry-filter', 'value')
-)
-def update_heatmap(filter_val):
-    data = df if filter_val == 'All' else df[df['ancestry'] == filter_val]
-    data = data.copy()
-    data['risk_group'] = pd.qcut(data['equity_score'], 4, labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4 (Highest)'])
-    heatmap_data = data.groupby(['ancestry', 'risk_group'])['high_risk'].mean().unstack()
-    fig = px.imshow(heatmap_data, title="High Risk Proportion by Ancestry and Risk Level",
-                    color_continuous_scale="RdYlGn_r", aspect="auto", text_auto='.2f')
-    return fig
-
-@app.callback(
-    Output('pca-plot', 'figure'),
-    Input('pca-plot', 'id')
-)
-def create_pca_plot(_):
-    from sklearn.decomposition import PCA
-    from sklearn.preprocessing import StandardScaler
-    features = ['genetic_risk', 'ses_risk', 'equity_score']
-    available = [f for f in features if f in df.columns]
-    X = df[available].dropna()
-    X_scaled = StandardScaler().fit_transform(X)
-    pca = PCA(n_components=2)
-    pca_result = pca.fit_transform(X_scaled)
-    fig = px.scatter(x=pca_result[:, 0], y=pca_result[:, 1], 
-                     color=df.loc[X.index, 'ancestry'],
-                     title=f'PCA: Risk Components (n={len(X):,})',
-                     labels={'x': f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)', 
-                             'y': f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)'})
-    return fig
-
-@app.callback(
-    Output('umap-plot', 'figure'),
-    Input('umap-color-by', 'value')
-)
-def create_umap_plot(color_by):
-    if not umap_available:
-        fig = go.Figure()
-        fig.add_annotation(text="UMAP coordinates not found. Run 'python umap_complete_analysis.py' first",
-                           showarrow=False)
-        return fig
+def update_drug_guidelines(drug):
+    info = guidelines[drug]
     
-    if color_by == 'ancestry':
-        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='ancestry',
-                         title='UMAP Projection - Colored by Ancestry',
-                         color_discrete_map={'AFR': '#e41a1c', 'EUR': '#377eb8', 
-                                            'EAS': '#4daf4a', 'SAS': '#984ea3', 'AMR': '#ff7f00'})
-    elif color_by == 'risk':
-        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='risk_category',
-                         title='UMAP Projection - Colored by Risk Category',
-                         color_discrete_map={'Low Risk': '#27ae60', 'Moderate Risk': '#f39c12',
-                                            'High Risk': '#e67e22', 'Very High Risk': '#e74c3c'})
-    elif color_by == 'equity':
-        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='equity_score',
-                         title='UMAP Projection - Colored by Equity Score',
-                         color_continuous_scale='RdYlGn_r')
+    # Color code FDA level
+    if 'Boxed' in info['fda_level']:
+        fda_color = '#e74c3c'
+    elif 'Warning' in info['fda_level']:
+        fda_color = '#e67e22'
+    elif 'Dosage' in info['fda_level']:
+        fda_color = '#3498db'
     else:
-        fig = px.scatter(umap_df, x='UMAP1', y='UMAP2', color='genetic_risk',
-                         title='UMAP Projection - Colored by Genetic Risk',
-                         color_continuous_scale='viridis')
+        fda_color = '#2c3e50'
     
-    fig.update_traces(marker=dict(size=5, opacity=0.6))
-    fig.update_layout(height=600)
-    return fig
+    rows = []
+    for risk in ['Low Risk', 'Moderate Risk', 'High Risk', 'Very High Risk']:
+        if risk == 'Low Risk':
+            risk_color = '#27ae60'
+        elif risk == 'Moderate Risk':
+            risk_color = '#f39c12'
+        elif risk == 'High Risk':
+            risk_color = '#e67e22'
+        else:
+            risk_color = '#e74c3c'
+        
+        rows.append(html.Tr([
+            html.Td(risk, style={'backgroundColor': risk_color, 'color': 'white', 'padding': '10px'}),
+            html.Td(info[risk], style={'padding': '10px'})
+        ]))
+    
+    # Check if this drug has FDA association
+    fda_match = fda_df[fda_df['Drug'] == drug]
+    fda_info = ""
+    if len(fda_match) > 0:
+        fda_info = html.Div([
+            html.H5("FDA Pharmacogenetic Information:", style={'marginTop': '15px'}),
+            html.P(f"📋 Variant: {fda_match.iloc[0]['Variant']}", style={'margin': '5px 0'}),
+            html.P(f"⚠️ FDA Action: {fda_match.iloc[0]['FDA_Action']}", style={'margin': '5px 0'}),
+            html.P(f"📝 Recommendation: {fda_match.iloc[0]['Recommendation']}", style={'margin': '5px 0'})
+        ], style={'backgroundColor': '#e8f4f8', 'padding': '15px', 'borderRadius': '10px', 'marginTop': '20px'})
+    
+    return html.Div([
+        html.Div([
+            html.H3(f"{drug}", style={'display': 'inline-block', 'marginRight': '15px'}),
+            html.Span(info['fda_level'], style={'backgroundColor': fda_color, 'color': 'white', 
+                                                 'padding': '5px 10px', 'borderRadius': '20px', 'fontSize': '14px'})
+        ], style={'marginBottom': '20px'}),
+        
+        html.P(f"Gene: {info['gene']}", style={'fontSize': '18px', 'marginBottom': '20px'}),
+        html.P(f"FDA Action: {info['fda_action']}", style={'color': '#666', 'marginBottom': '20px'}),
+        
+        html.H4("Risk-Based Recommendations:"),
+        html.Table(rows, style={'width': '100%', 'borderCollapse': 'collapse', 'border': '1px solid #ddd'}),
+        
+        fda_info
+    ])
+
+# ============================================================
+# 6. RUN THE APP
+# ============================================================
+print("\n[5/5] Starting web server...")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8050))
+    print(f"\n🌐 Server running at http://localhost:{port}")
+    print("📊 Features:")
+    print("   • Clinical calculator with FDA-backed recommendations")
+    print("   • Complete FDA PGx table with filtering")
+    print("   • Drug guidelines with FDA evidence levels")
+    print("   • Boxed Warning, Warning, and Dosage Label indicators")
+    print("\n💡 Press Ctrl+C to stop")
+    
     app.run(host='0.0.0.0', port=port, debug=False)
